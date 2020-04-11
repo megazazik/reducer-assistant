@@ -1,38 +1,26 @@
 import { StoreEnhancer, StoreEnhancerStoreCreator } from 'redux';
-import { IModel, bindActionCreators } from 'encaps';
 import EventEmitter from 'eventemitter3';
 // ------------------------------------------
 import './tmp';
 // ------------------------------------------
 
 const getStateSymbol = Symbol('getState');
-const actionsSymbol = Symbol('actions');
 const dispatchSymbol = Symbol('dispatch');
 const subscribeSymbol = Symbol('subscribe');
 const actionsEventEmitterSymbol = Symbol('actionsEe');
 const initSymbol = Symbol('init');
 const onDestroySymbol = Symbol('onDestroy');
 
-const getDispatch = <A>(
-	dispatch: (action: any) => void,
-	actions: A
-): { (action: any): void } & A =>
-	Object.assign(
-		(action: any) => dispatch(action),
-		bindActionCreators(actions as any, dispatch)
-	);
-
 type Unsubscribe = () => void;
 
 const BEFORE_ACTION_EVENT = 'before';
 const AFTER_ACTION_EVENT = 'after';
 
-export abstract class Assistant<M extends IModel<any, any>> {
-	private prevState: Readonly<ReturnType<M['reducer']>>;
+export abstract class Assistant<S> {
+	private prevState: Readonly<S>;
 	private unsubscribes = new Set<Unsubscribe>();
 
-	public [actionsSymbol]: M['actions'];
-	public [getStateSymbol]: () => Readonly<ReturnType<M['reducer']>>;
+	public [getStateSymbol]: () => Readonly<S>;
 	public [dispatchSymbol]: { (action: any): void };
 	public [subscribeSymbol]: (callback: () => void) => Unsubscribe;
 	public [actionsEventEmitterSymbol]: EventEmitter;
@@ -111,12 +99,11 @@ export abstract class Assistant<M extends IModel<any, any>> {
 		});
 	}
 
-	protected dispatch: {
-		(action: any): void;
-	} & M['actions'];
+	get dispatch() {
+		return this[dispatchSymbol];
+	}
 
 	public [initSymbol]() {
-		this.dispatch = getDispatch(this[dispatchSymbol], this[actionsSymbol]);
 		this.onInit();
 
 		/**
@@ -148,17 +135,15 @@ export abstract class Assistant<M extends IModel<any, any>> {
 
 	private readonly assistants = new Set<Assistant<any>>();
 
-	protected createAssistant<A extends Assistant<any>>(
-		create: () => A,
-		select = (state: any) => state
-	): A {
+	protected createAssistant<
+		AssistantS = S,
+		A extends Assistant<AssistantS> = Assistant<AssistantS>
+	>(config: AssistantConfig<S, AssistantS, A>) {
 		const newAssistant = createAssistant(
-			create,
-			select,
+			config,
 			() => this.state,
 			this[dispatchSymbol],
 			this[subscribeSymbol],
-			this[actionsSymbol],
 			this[actionsEventEmitterSymbol],
 			() => {
 				this.assistants.delete(newAssistant);
@@ -169,25 +154,141 @@ export abstract class Assistant<M extends IModel<any, any>> {
 	}
 }
 
-export interface IModule<
-	M extends IModel<any, any>,
-	Effects extends Array<{ new (): Assistant<M> }>
-> {
-	model: M;
-	effects?: Effects;
-	children?: Array<IModule<any, any>>;
+export type Configs<S> = Array<AssistantConfig<S, any, any>>;
+
+export function addSelect<
+	K extends string,
+	S,
+	AssistantS = S,
+	A extends Assistant<AssistantS> = Assistant<AssistantS>
+>(
+	select: K,
+	config: AssistantConfig<S, AssistantS, A>
+): AssistantConfig<{ [P in K]: S }, AssistantS, A>;
+export function addSelect<
+	NewS,
+	S,
+	AssistantS = S,
+	A extends Assistant<AssistantS> = Assistant<AssistantS>
+>(
+	select: (s: NewS) => S,
+	config: AssistantConfig<S, AssistantS, A>
+): AssistantConfig<NewS, AssistantS, A>;
+export function addSelect<NewS, K extends keyof NewS>(
+	select: K,
+	configs: Array<AssistantConfig<NewS[K], any, any>>
+): AssistantConfig<NewS, any, any>;
+export function addSelect<NewS, S>(
+	select: (s: NewS) => S,
+	configs: Array<AssistantConfig<S, any, any>>
+): AssistantConfig<NewS, any, any>;
+export function addSelect(
+	select: string | ((s: any) => any),
+	config: AssistantConfig<any> | Array<AssistantConfig<any>>
+): AssistantConfig<any> | Array<AssistantConfig<any>> {
+	const innerSelect =
+		typeof select === 'function' ? select : (s: any) => s[select];
+	if (Array.isArray(config)) {
+		return config.map((c) => innerAddSelect(innerSelect, c));
+	}
+	return innerAddSelect(innerSelect, config);
 }
 
-export const createModule = <
-	M extends IModel<any, any>,
-	Effects extends Array<{ new (): Assistant<M> }>
->(
-	module: IModule<M, Effects>
-) => module;
+function innerAddSelect(
+	select: (s: any) => any,
+	config: AssistantConfig<any>
+): CreateAssistantConfig<any> {
+	const createConfig = getCreateConfig(config);
+	return {
+		create: createConfig.create,
+		select: (s) => createConfig.select(select(s)),
+	};
+}
 
-export const enhancer: (
-	module: IModule<IModel<any, any>, any[]>
-) => StoreEnhancer = (module) => (createStore) => {
+export type AssistantConfig<
+	S,
+	AssistantS = S,
+	A extends Assistant<AssistantS> = Assistant<AssistantS>
+> =
+	| { new (): A }
+	| ConstructorAssistantConfig<S, AssistantS, A>
+	| CreateAssistantConfig<S, AssistantS, A>;
+
+type ConstructorAssistantConfig<
+	S,
+	AssistantS = S,
+	A extends Assistant<AssistantS> = Assistant<AssistantS>
+> = {
+	Constructor: { new (): A };
+	select: (s: S) => AssistantS;
+};
+
+type CreateAssistantConfig<
+	S,
+	AssistantS = S,
+	A extends Assistant<AssistantS> = Assistant<AssistantS>
+> = {
+	create(): A;
+	select: (s: S) => AssistantS;
+};
+
+function getCreateConfig<
+	S,
+	AssistantS = S,
+	A extends Assistant<AssistantS> = Assistant<AssistantS>
+>(
+	config: AssistantConfig<S, AssistantS, A>
+): CreateAssistantConfig<S, AssistantS, A> {
+	if (typeof config === 'function') {
+		return {
+			select: (s) => s as any,
+			create: () => new config(),
+		};
+	}
+
+	if (isConstructorConfig(config)) {
+		return {
+			select: config.select,
+			create: () => new config.Constructor(),
+		};
+	}
+
+	if (isCreateConfig(config)) {
+		return config;
+	}
+
+	throw new Error('Incorrect assistant config');
+}
+
+function isConstructorConfig<
+	S,
+	AssistantS = S,
+	A extends Assistant<AssistantS> = Assistant<AssistantS>
+>(
+	config: AssistantConfig<S, AssistantS, A>
+): config is ConstructorAssistantConfig<S, AssistantS, A> {
+	return (
+		typeof config === 'object' &&
+		typeof (config as any).Constructor === 'function'
+	);
+}
+
+function isCreateConfig<
+	S,
+	AssistantS = S,
+	A extends Assistant<AssistantS> = Assistant<AssistantS>
+>(
+	config: AssistantConfig<S, AssistantS, A>
+): config is ConstructorAssistantConfig<S, AssistantS, A> {
+	return (
+		typeof config === 'object' &&
+		typeof (config as any).create === 'function'
+	);
+}
+
+export const enhancer: <S>(
+	assistantConfigs: Array<AssistantConfig<S, any, any>>
+) => StoreEnhancer = (assistantConfigs) => (createStore) => {
 	const newCreateStore: StoreEnhancerStoreCreator<{}, {}> = (
 		reducer,
 		preloadedState
@@ -204,14 +305,12 @@ export const enhancer: (
 		const enhancedStore = { ...store, dispatch };
 
 		/** @todo доработать очистку помощников */
-		module.effects.forEach((EffectConstructor) => {
+		assistantConfigs.forEach((config) => {
 			createAssistant(
-				() => new EffectConstructor(),
-				(state) => state,
-				enhancedStore.getState,
+				config,
+				() => enhancedStore.getState(),
 				enhancedStore.dispatch,
 				enhancedStore.subscribe,
-				module.model.actions,
 				actionsEmitter
 			);
 		});
@@ -220,27 +319,28 @@ export const enhancer: (
 	return newCreateStore;
 };
 
-/** @todo дописать типы */
-function createAssistant<A extends Assistant<any>>(
-	assistantCreator: () => A,
-	select: (state: any) => any,
-	getState: () => any,
+function createAssistant<
+	S,
+	AssistantS = S,
+	A extends Assistant<AssistantS> = Assistant<AssistantS>
+>(
+	config: AssistantConfig<S, AssistantS, A>,
+	getState: () => S,
 	dispatch: (action: any) => void,
 	subscribe: (callback: () => void) => Unsubscribe,
-	actions: any,
 	eventemitter: EventEmitter,
 	onDestroy = () => {}
 ) {
-	const effect = assistantCreator();
+	const { create, select } = getCreateConfig(config);
+	const assistant = create();
 
-	effect[actionsSymbol] = actions;
-	effect[getStateSymbol] = () => select(getState());
-	effect[dispatchSymbol] = dispatch;
-	effect[subscribeSymbol] = subscribe;
-	effect[actionsEventEmitterSymbol] = eventemitter;
-	effect[onDestroySymbol] = onDestroy;
+	assistant[getStateSymbol] = () => select(getState());
+	assistant[dispatchSymbol] = dispatch;
+	assistant[subscribeSymbol] = subscribe;
+	assistant[actionsEventEmitterSymbol] = eventemitter;
+	assistant[onDestroySymbol] = onDestroy;
 
-	effect[initSymbol]();
+	assistant[initSymbol]();
 
-	return effect;
+	return assistant;
 }
