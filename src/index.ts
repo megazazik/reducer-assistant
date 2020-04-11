@@ -135,11 +135,10 @@ export abstract class Assistant<S> {
 
 	private readonly assistants = new Set<Assistant<any>>();
 
-	protected createAssistant<
-		AssistantS = S,
-		A extends Assistant<AssistantS> = Assistant<AssistantS>
-	>(config: AssistantConfig<S, AssistantS, A>) {
-		const newAssistant = createAssistant(
+	protected createAssistant<A extends Assistant<any>>(
+		config: AssistantConfig<A, S>
+	) {
+		const newAssistant: A = createAssistant(
 			config,
 			() => this.state,
 			this[dispatchSymbol],
@@ -154,34 +153,32 @@ export abstract class Assistant<S> {
 	}
 }
 
-export type Configs<S> = Array<AssistantConfig<S, any, any>>;
+export type Configs<S> = Array<AssistantConfig<Assistant<any>, S>>;
 
 export function addSelect<
 	K extends string,
-	S,
-	AssistantS = S,
-	A extends Assistant<AssistantS> = Assistant<AssistantS>
+	A extends Assistant<any>,
+	S = StateOfAssistant<A>
 >(
 	select: K,
-	config: AssistantConfig<S, AssistantS, A>
-): AssistantConfig<{ [P in K]: S }, AssistantS, A>;
+	config: AssistantConfig<A, S>
+): AssistantConfig<A, { [P in K]: S }>;
 export function addSelect<
 	NewS,
-	S,
-	AssistantS = S,
-	A extends Assistant<AssistantS> = Assistant<AssistantS>
+	A extends Assistant<any>,
+	S = StateOfAssistant<A>
 >(
 	select: (s: NewS) => S,
-	config: AssistantConfig<S, AssistantS, A>
-): AssistantConfig<NewS, AssistantS, A>;
-export function addSelect<NewS, K extends keyof NewS>(
+	config: AssistantConfig<A, S>
+): AssistantConfig<A, NewS>;
+export function addSelect<K extends string, S>(
 	select: K,
-	configs: Array<AssistantConfig<NewS[K], any, any>>
-): AssistantConfig<NewS, any, any>;
+	configs: Configs<S>
+): Configs<{ [P in K]: S }>;
 export function addSelect<NewS, S>(
 	select: (s: NewS) => S,
-	configs: Array<AssistantConfig<S, any, any>>
-): AssistantConfig<NewS, any, any>;
+	configs: Configs<S>
+): Configs<NewS>;
 export function addSelect(
 	select: string | ((s: any) => any),
 	config: AssistantConfig<any> | Array<AssistantConfig<any>>
@@ -205,40 +202,37 @@ function innerAddSelect(
 	};
 }
 
+type StateOfAssistant<A extends Assistant<any>> = A extends Assistant<infer S>
+	? S
+	: never;
+
 export type AssistantConfig<
-	S,
-	AssistantS = S,
-	A extends Assistant<AssistantS> = Assistant<AssistantS>
+	A extends Assistant<any>,
+	S = StateOfAssistant<A>
 > =
 	| { new (): A }
-	| ConstructorAssistantConfig<S, AssistantS, A>
-	| CreateAssistantConfig<S, AssistantS, A>;
+	| ConstructorAssistantConfig<A, S>
+	| CreateAssistantConfig<A, S>;
 
 type ConstructorAssistantConfig<
-	S,
-	AssistantS = S,
-	A extends Assistant<AssistantS> = Assistant<AssistantS>
+	A extends Assistant<any>,
+	S = StateOfAssistant<A>
 > = {
 	Constructor: { new (): A };
-	select: (s: S) => AssistantS;
+	select: (s: S) => StateOfAssistant<A>;
 };
 
 type CreateAssistantConfig<
-	S,
-	AssistantS = S,
-	A extends Assistant<AssistantS> = Assistant<AssistantS>
+	A extends Assistant<any>,
+	S = StateOfAssistant<A>
 > = {
-	create(): A;
-	select: (s: S) => AssistantS;
+	create: () => A;
+	select: (s: S) => StateOfAssistant<A>;
 };
 
-function getCreateConfig<
-	S,
-	AssistantS = S,
-	A extends Assistant<AssistantS> = Assistant<AssistantS>
->(
-	config: AssistantConfig<S, AssistantS, A>
-): CreateAssistantConfig<S, AssistantS, A> {
+function getCreateConfig<A extends Assistant<any>, S>(
+	config: AssistantConfig<A, S>
+): CreateAssistantConfig<A, S> {
 	if (typeof config === 'function') {
 		return {
 			select: (s) => s as any,
@@ -260,26 +254,18 @@ function getCreateConfig<
 	throw new Error('Incorrect assistant config');
 }
 
-function isConstructorConfig<
-	S,
-	AssistantS = S,
-	A extends Assistant<AssistantS> = Assistant<AssistantS>
->(
-	config: AssistantConfig<S, AssistantS, A>
-): config is ConstructorAssistantConfig<S, AssistantS, A> {
+function isConstructorConfig<A extends Assistant<any>, S>(
+	config: AssistantConfig<A, S>
+): config is ConstructorAssistantConfig<A, S> {
 	return (
 		typeof config === 'object' &&
 		typeof (config as any).Constructor === 'function'
 	);
 }
 
-function isCreateConfig<
-	S,
-	AssistantS = S,
-	A extends Assistant<AssistantS> = Assistant<AssistantS>
->(
-	config: AssistantConfig<S, AssistantS, A>
-): config is ConstructorAssistantConfig<S, AssistantS, A> {
+function isCreateConfig<A extends Assistant<any>, S>(
+	config: AssistantConfig<A, S>
+): config is ConstructorAssistantConfig<A, S> {
 	return (
 		typeof config === 'object' &&
 		typeof (config as any).create === 'function'
@@ -287,7 +273,7 @@ function isCreateConfig<
 }
 
 export const enhancer: <S>(
-	assistantConfigs: Array<AssistantConfig<S, any, any>>
+	assistantConfigs: Array<AssistantConfig<any, S>>
 ) => StoreEnhancer = (assistantConfigs) => (createStore) => {
 	const newCreateStore: StoreEnhancerStoreCreator<{}, {}> = (
 		reducer,
@@ -319,12 +305,8 @@ export const enhancer: <S>(
 	return newCreateStore;
 };
 
-function createAssistant<
-	S,
-	AssistantS = S,
-	A extends Assistant<AssistantS> = Assistant<AssistantS>
->(
-	config: AssistantConfig<S, AssistantS, A>,
+function createAssistant<A extends Assistant<any>, S>(
+	config: AssistantConfig<A, S>,
 	getState: () => S,
 	dispatch: (action: any) => void,
 	subscribe: (callback: () => void) => Unsubscribe,

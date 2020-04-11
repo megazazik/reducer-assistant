@@ -9,10 +9,5 @@ export { model3 };
 export const assistants: Configs<State3> = [
 	Model3Assistant,
 	addSelect('model2', Model2Assistant),
-	addSelect('model2', Model1Assistant),
+	addSelect('model1', Model1Assistant),
 ];
-
-const t = addSelect('model2', {
-	Constructor: Model1Assistant,
-	select: ({ model2 }) => model2,
-});

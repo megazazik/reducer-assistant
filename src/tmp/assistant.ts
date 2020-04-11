@@ -1,13 +1,15 @@
 import { model } from './model';
-import { Assistant } from '..';
+import { Assistant, addSelect } from '..';
 
-export class ModelAssistant extends Assistant<typeof model> {
+export class ModelAssistant extends Assistant<
+	ReturnType<typeof model.reducer>
+> {
 	private tmp: Temp;
 
 	onInit() {
 		this.afterAction('mytest', () => {
 			// this.dispatch({ type: 'model3.model1.setValue', payload: 876 });
-			this.tmp = this.createAssistant(() => new Temp());
+			this.tmp = this.createAssistant(addSelect('model3', Temp));
 		});
 
 		this.afterAction('remove', () => {
@@ -16,7 +18,7 @@ export class ModelAssistant extends Assistant<typeof model> {
 	}
 }
 
-class Temp extends Assistant<typeof model> {
+class Temp extends Assistant<any> {
 	onInit() {
 		this.beforeAction((action) => {
 			console.log('before action', action);

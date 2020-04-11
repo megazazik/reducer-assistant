@@ -1,18 +1,20 @@
 import { createStore } from 'redux';
-import { createModule, enhancer } from '..';
-import module3 from './module3';
+import { enhancer, addSelect } from '..';
+import { assistants } from './module3';
 import { model } from './model';
 import { ModelAssistant } from './assistant';
 
-const module = createModule({
-	model: model,
-	children: [module3],
-	effects: [ModelAssistant],
-});
-
 console.log('start');
 
-const store = createStore(module.model.reducer, enhancer(module));
+addSelect('model3', assistants);
+
+const store = createStore(
+	model.reducer,
+	enhancer<ReturnType<typeof model.reducer>>([
+		ModelAssistant,
+		...addSelect('model3', assistants),
+	])
+);
 
 console.log('state', store.getState());
 
