@@ -155,13 +155,21 @@ export abstract class Assistant<S> {
 
 export type Configs<S> = Array<AssistantConfig<Assistant<any>, S>>;
 
+export function addSelect<K extends string, A extends Assistant<any>>(
+	select: K,
+	config: { new (): A }
+): AssistantConfig<A, { [P in K]: StateOfAssistant<A> }>;
+export function addSelect<NewS, A extends Assistant<any>>(
+	select: (s: NewS) => StateOfAssistant<A>,
+	config: { new (): A }
+): AssistantConfig<A, NewS>;
 export function addSelect<
 	K extends string,
 	A extends Assistant<any>,
 	S = StateOfAssistant<A>
 >(
 	select: K,
-	config: AssistantConfig<A, S>
+	config: ConstructorAssistantConfig<A, S> | CreateAssistantConfig<A, S>
 ): AssistantConfig<A, { [P in K]: S }>;
 export function addSelect<
 	NewS,
@@ -169,7 +177,7 @@ export function addSelect<
 	S = StateOfAssistant<A>
 >(
 	select: (s: NewS) => S,
-	config: AssistantConfig<A, S>
+	config: ConstructorAssistantConfig<A, S> | CreateAssistantConfig<A, S>
 ): AssistantConfig<A, NewS>;
 export function addSelect<K extends string, S>(
 	select: K,
@@ -179,6 +187,7 @@ export function addSelect<NewS, S>(
 	select: (s: NewS) => S,
 	configs: Configs<S>
 ): Configs<NewS>;
+/** Implementation */
 export function addSelect(
 	select: string | ((s: any) => any),
 	config: AssistantConfig<any> | Array<AssistantConfig<any>>

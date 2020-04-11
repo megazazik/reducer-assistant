@@ -6,8 +6,6 @@ import { ModelAssistant } from './assistant';
 
 console.log('start');
 
-addSelect('model3', assistants);
-
 const store = createStore(
 	model.reducer,
 	enhancer<ReturnType<typeof model.reducer>>([
