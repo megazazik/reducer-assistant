@@ -17,9 +17,11 @@ const store = createStore(
 console.log('state', store.getState());
 
 // store.dispatch(model.actions.model3.model1.setValue(123));
-store.dispatch({ type: 'mytest' });
+// store.dispatch({ type: 'mytest' });
 
 store.dispatch({ type: 'actionTmp' });
+
+store.dispatch(model.actions.model3.model1.setValue(13));
 
 store.dispatch({ type: 'remove' });
 
