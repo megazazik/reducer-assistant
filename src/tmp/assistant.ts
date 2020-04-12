@@ -1,5 +1,5 @@
 import { model } from './model';
-import { Assistant, addSelect } from '..';
+import { Assistant, ofStatePart } from '..';
 
 export class ModelAssistant extends Assistant<
 	ReturnType<typeof model.reducer>
@@ -9,7 +9,7 @@ export class ModelAssistant extends Assistant<
 	onInit() {
 		this.afterAction('mytest', () => {
 			// this.dispatch({ type: 'model3.model1.setValue', payload: 876 });
-			this.tmp = this.createAssistant(addSelect('model3', Temp));
+			this.tmp = this.createAssistant(ofStatePart('model3', Temp));
 		});
 
 		this.afterAction('remove', () => {

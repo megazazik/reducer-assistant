@@ -1,5 +1,5 @@
 import { createStore } from 'redux';
-import { addSelect } from '..';
+import { ofStatePart } from '..';
 import { createAssistantEnhancer } from '../redux';
 import { assistants } from './module3';
 import { model } from './model';
@@ -15,7 +15,7 @@ const store = createStore(model.reducer, assistantEnhancer);
 
 assistantEnhancer.applyAssistants([
 	ModelAssistant,
-	...addSelect('model3', assistants),
+	...ofStatePart('model3', assistants),
 ]);
 
 console.log('state', store.getState());

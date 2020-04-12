@@ -154,15 +154,15 @@ export abstract class Assistant<S> {
 
 export type Configs<S> = Array<AssistantConfig<Assistant<any>, S>>;
 
-export function addSelect<K extends string, A extends Assistant<any>>(
+export function ofStatePart<K extends string, A extends Assistant<any>>(
 	select: K,
 	config: { new (): A }
 ): AssistantConfig<A, { [P in K]: StateOfAssistant<A> }>;
-export function addSelect<NewS, A extends Assistant<any>>(
+export function ofStatePart<NewS, A extends Assistant<any>>(
 	select: (s: NewS) => StateOfAssistant<A>,
 	config: { new (): A }
 ): AssistantConfig<A, NewS>;
-export function addSelect<
+export function ofStatePart<
 	K extends string,
 	A extends Assistant<any>,
 	S = StateOfAssistant<A>
@@ -170,7 +170,7 @@ export function addSelect<
 	select: K,
 	config: ConstructorAssistantConfig<A, S> | CreateAssistantConfig<A, S>
 ): AssistantConfig<A, { [P in K]: S }>;
-export function addSelect<
+export function ofStatePart<
 	NewS,
 	A extends Assistant<any>,
 	S = StateOfAssistant<A>
@@ -178,16 +178,16 @@ export function addSelect<
 	select: (s: NewS) => S,
 	config: ConstructorAssistantConfig<A, S> | CreateAssistantConfig<A, S>
 ): AssistantConfig<A, NewS>;
-export function addSelect<K extends string, S>(
+export function ofStatePart<K extends string, S>(
 	select: K,
 	configs: Configs<S>
 ): Configs<{ [P in K]: S }>;
-export function addSelect<NewS, S>(
+export function ofStatePart<NewS, S>(
 	select: (s: NewS) => S,
 	configs: Configs<S>
 ): Configs<NewS>;
 /** Implementation */
-export function addSelect(
+export function ofStatePart(
 	select: string | ((s: any) => any),
 	config: AssistantConfig<any> | Array<AssistantConfig<any>>
 ): AssistantConfig<any> | Array<AssistantConfig<any>> {

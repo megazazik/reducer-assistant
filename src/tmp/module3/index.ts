@@ -1,4 +1,4 @@
-import { addSelect, Configs, AssistantConfig } from '../..';
+import { ofStatePart, Configs, AssistantConfig } from '../..';
 import { model3, State3 } from './model';
 import { Model3Assistant } from './assistant';
 import { Model1Assistant } from '../module1';
@@ -8,6 +8,6 @@ export { model3 };
 
 export const assistants: Configs<State3> = [
 	Model3Assistant,
-	addSelect('model1', Model1Assistant),
-	addSelect('model2', Model2Assistant),
+	ofStatePart('model1', Model1Assistant),
+	ofStatePart('model2', Model2Assistant),
 ];
