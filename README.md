@@ -146,7 +146,7 @@ Listeners passed to `onChange` will be invoked when the state has changed after 
 class MyAssistant extends Assistant {
 	onInit() {
 		this.onChange(() => {
-			console.log('new state action', this.state);
+			console.log('new state', this.state);
 		});
 	}
 }
@@ -214,7 +214,7 @@ class MyAssistant extends Assistant {
 
 ### destroy
 
-Via the `destroy` method you can stop an current assistant themself or a child assistant.
+Via the `destroy` method you can stop an current assistant or a child assistant.
 
 ```typescript
 class MyAssistant extends Assistant {
@@ -258,7 +258,7 @@ class ClickAssistant extends Assistant {
 }
 ```
 
-There is no need to remove listeners of the base assistant events such as `onChange` or `afterAction` or destroy child assistants. They will be removed automatically.
+There is no need to remove listeners of the base assistant class events such as `onChange` or `afterAction` or destroy child assistants. They will be removed automatically.
 
 ## Assistant config
 
@@ -322,7 +322,7 @@ type PageState = {
 }
 ```
 
-When you create an assistant you can specify a part of state which will be managed by the assistant via select function of `AssistantConfig`.
+When you create an assistant you can specify a part of state which will be managed by the assistant via `select` function of `AssistantConfig`.
 
 ```typescript
 enhancer.applyAssistants([
