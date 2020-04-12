@@ -14,7 +14,7 @@ const assistantEnhancer = createAssistantEnhancer<
 const store = createStore(model.reducer, assistantEnhancer);
 
 assistantEnhancer.applyAssistants([
-	ModelAssistant,
+	{ create: () => new ModelAssistant() },
 	...ofStatePart('model3', assistants),
 ]);
 

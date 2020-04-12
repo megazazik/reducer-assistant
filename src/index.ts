@@ -227,7 +227,7 @@ type ConstructorAssistantConfig<
 	S = StateOfAssistant<A>
 > = {
 	Constructor: { new (): A };
-	select: (s: S) => StateOfAssistant<A>;
+	select?: (s: S) => StateOfAssistant<A>;
 };
 
 type CreateAssistantConfig<
@@ -235,7 +235,7 @@ type CreateAssistantConfig<
 	S = StateOfAssistant<A>
 > = {
 	create: () => A;
-	select: (s: S) => StateOfAssistant<A>;
+	select?: (s: S) => StateOfAssistant<A>;
 };
 
 function getCreateConfig<A extends Assistant<any>, S>(
@@ -250,13 +250,16 @@ function getCreateConfig<A extends Assistant<any>, S>(
 
 	if (isConstructorConfig(config)) {
 		return {
-			select: config.select,
+			select: config.select || ((s) => s as any),
 			create: () => new config.Constructor(),
 		};
 	}
 
 	if (isCreateConfig(config)) {
-		return config;
+		return {
+			create: config.create,
+			select: config.select || ((s) => s as any),
+		};
 	}
 
 	throw new Error('Incorrect assistant config');
@@ -273,7 +276,7 @@ function isConstructorConfig<A extends Assistant<any>, S>(
 
 function isCreateConfig<A extends Assistant<any>, S>(
 	config: AssistantConfig<A, S>
-): config is ConstructorAssistantConfig<A, S> {
+): config is CreateAssistantConfig<A, S> {
 	return (
 		typeof config === 'object' &&
 		typeof (config as any).create === 'function'

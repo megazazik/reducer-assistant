@@ -8,6 +8,6 @@ export { model3 };
 
 export const assistants: Configs<State3> = [
 	Model3Assistant,
-	ofStatePart('model1', Model1Assistant),
+	ofStatePart('model1', { create: () => new Model1Assistant() }),
 	ofStatePart('model2', Model2Assistant),
 ];

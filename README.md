@@ -99,7 +99,7 @@ class MyAssistant extends Assistant {
 }
 ```
 
-To find out how to pass parameters to assistant's constructor see [Assistant config](#assistant-config) section.
+To find out how to pass parameters to assistant's constructor see [Assistant parameters](#assistant-parameters) section.
 
 You CAN'T use any inherited methods or properties of base class in constructor. Use them inside `onInit` or after it.
 
@@ -271,11 +271,11 @@ type AssistantConfig =
 	| { new (): Assistant }
 	| {
 			Constructor: { new (): Assistant };
-			select: (fullstate: any) => any;
+			select?: (fullstate: any) => any;
 	  }
 	| {
 			create: () => Assistant;
-			select: (fullstate: any) => any;
+			select?: (fullstate: any) => any;
 	  };
 ```
 
@@ -398,4 +398,82 @@ enhancer.applyAssistants(
 		[Assistant1, Assistant2, ...]
 	)
 );
+```
+
+The `ofStatePart` can be invoked many times.
+
+```ts
+ofStatePart(
+	'field1',
+	ofStatePart(
+		'field2',
+		ofStatePart(
+			'timer',
+			[Assistant1, Assistant2, ...]
+		)
+	)
+)
+```
+
+### Assistant config with `create` function
+
+Another form of `AssistantConfig` is the object with a `create` method instead of `Constructor`. A `create` method should return a new instance of `Assistant`. The following examples are equal.
+
+```ts
+enhancer.applyAssistants([
+	{
+		Constructor: TimerAssistant,
+		select: (fullstate) => fullstate.timer,
+	},
+]);
+
+enhancer.applyAssistants([
+	{
+		create: () => new TimerAssistant(),
+		select: (fullstate) => fullstate.timer,
+	},
+]);
+```
+
+## Assistant parameters
+
+Assistant configs passed to `applyAssistants` or `createAssistant` methods must not require any parameters. If they need some parameters, they should be configured before `applyAssistants` or `createAssistant` calls.
+
+Consider some assistant requires the `url` parameter.
+
+```ts
+class FetchAssistant extends Assistant {
+	constructor(url) {
+		super();
+		this.url = url;
+	}
+
+	/** ... */
+}
+```
+
+You can create a function which returns a `AssistantConfig` configured with an url.
+
+```ts
+function getAssistantConfig(url) {
+	return class WithUrlFetchAssistant extends FetchAssistant {
+		constructor() {
+			super(url)
+		}
+	}
+}
+
+// or
+
+function getAssistantConfig(url) {
+	return {
+		create: () => new FetchAssistant(url);
+	}
+}
+```
+
+And then can use this helper.
+
+```ts
+enhancer.applyAssistants([getAssistantConfig(url)]);
 ```
