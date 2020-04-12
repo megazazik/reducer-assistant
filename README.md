@@ -325,13 +325,77 @@ type PageState = {
 When you create an assistant you can specify a part of state which will be managed by the assistant via select function of `AssistantConfig`.
 
 ```typescript
-enhancer.applyAssistants([{
-	Constructor: TimerAssistant;
-	/** select part of the PageState for TimerAssistant */
-	select: (fullstate) => fullstate.timer;
-}]); // instead of enhancer.applyAssistants([TimerAssistant])
+enhancer.applyAssistants([
+	{
+		Constructor: TimerAssistant,
+		/** select part of the PageState for TimerAssistant */
+		select: (fullstate) => fullstate.timer,
+	},
+]); // instead of enhancer.applyAssistants([TimerAssistant])
 ```
 
-Now the `state` property of a `TimerAssistant`'s instance will return the `timer` field value of the page state.
+Now the `state` property of a `TimerAssistant`'s instance will return the `timer` field value of the page state. And listeners of the `onChange` event will be invoked only after the `timer` field changed.
 
-// дочерние редьюсеры по умолчанию наследуют селект родителя
+#### select in child assistant config
+
+When you create an assistant inside another assistant, the child assistant receives the parent state by default. You can pass an `AssistantConfig` with `select` function to the `createAssistant` method if you want the child assistant to manage some part of the parent state.
+
+```typescript
+class PageAssistant extends Assistant<PageState> {
+	onInit() {
+		this.createAssistant({
+			Constructor: TimerAssistant,
+			select: (fullstate) => fullstate.timer,
+		}); // instead of this.createAssistant(TimerAssistant)
+	}
+}
+```
+
+#### ofStatePart
+
+To simplify creation of `AssistantConfig` with `select` there is the `ofStatePart` function.
+
+```ts
+import { ofStatePart } from 'reducer-assistant';
+
+/** all these calls are equal */
+
+enhancer.applyAssistants([
+	{
+		Constructor: TimerAssistant,
+		/** select part of the PageState for TimerAssistant */
+		select: (fullstate) => fullstate.timer,
+	},
+]);
+
+enhancer.applyAssistants([
+	ofStatePart((fullstate) => fullstate.timer, TimerAssistant),
+]);
+
+enhancer.applyAssistants([ofStatePart('timer', TimerAssistant)]);
+```
+
+The first parameter of the `ofStatePart` is a `select` function or a field name of a whole state. The second parameter is an `AssistantConfig`.
+
+There is another version of the `ofStatePart`.
+You can pass an array of configs to it. Then the `ofStatePart` returns an array too.
+
+```ts
+import { ofStatePart } from 'reducer-assistant';
+
+enhancer.applyAssistants(
+	ofStatePart(
+		(fullstate) => fullstate.timer,
+		[Assistant1, Assistant2, ...]
+	),
+);
+
+// or
+
+enhancer.applyAssistants(
+	ofStatePart(
+		'timer',
+		[Assistant1, Assistant2, ...]
+	)
+);
+```
