@@ -14,5 +14,5 @@
 		"noImplicitThis": true,
 		"experimentalDecorators": true
 	},
-	"files": ["./src/index.ts"]
+	"files": ["./src/index.ts", "./src/redux.ts"]
 }

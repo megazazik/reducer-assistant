@@ -1,9 +1,3 @@
-import { StoreEnhancer, StoreEnhancerStoreCreator } from 'redux';
-import EventEmitter from 'eventemitter3';
-// ------------------------------------------
-import './tmp';
-// ------------------------------------------
-
 const getStateSymbol = Symbol('getState');
 const dispatchSymbol = Symbol('dispatch');
 const subscribeSymbol = Symbol('subscribe');
@@ -13,8 +7,13 @@ const onDestroySymbol = Symbol('onDestroy');
 
 type Unsubscribe = () => void;
 
-const BEFORE_ACTION_EVENT = 'before';
-const AFTER_ACTION_EVENT = 'after';
+export const BEFORE_ACTION_EVENT = 'before';
+export const AFTER_ACTION_EVENT = 'after';
+
+export interface IEventEmitter {
+	on(eventName: string, callback: (action: any) => void): void;
+	removeListener(eventName: string, callback: (action: any) => void): void;
+}
 
 export abstract class Assistant<S> {
 	private prevState: Readonly<S>;
@@ -23,7 +22,7 @@ export abstract class Assistant<S> {
 	public [getStateSymbol]: () => Readonly<S>;
 	public [dispatchSymbol]: { (action: any): void };
 	public [subscribeSymbol]: (callback: () => void) => Unsubscribe;
-	public [actionsEventEmitterSymbol]: EventEmitter;
+	public [actionsEventEmitterSymbol]: IEventEmitter;
 	public [onDestroySymbol]: () => void;
 
 	protected onDestroy() {}
@@ -281,45 +280,12 @@ function isCreateConfig<A extends Assistant<any>, S>(
 	);
 }
 
-export const enhancer: <S>(
-	assistantConfigs: Array<AssistantConfig<any, S>>
-) => StoreEnhancer = (assistantConfigs) => (createStore) => {
-	const newCreateStore: StoreEnhancerStoreCreator<{}, {}> = (
-		reducer,
-		preloadedState
-	) => {
-		const store = createStore<any, any>(reducer, preloadedState);
-		const actionsEmitter = new EventEmitter();
-		const dispatch = (action: any, ...args: any[]) => {
-			actionsEmitter.emit(BEFORE_ACTION_EVENT, action);
-			const result = (store.dispatch as any)(action, ...args);
-			actionsEmitter.emit(AFTER_ACTION_EVENT, action);
-			return result;
-		};
-
-		const enhancedStore = { ...store, dispatch };
-
-		/** @todo доработать очистку помощников */
-		assistantConfigs.forEach((config) => {
-			createAssistant(
-				config,
-				() => enhancedStore.getState(),
-				enhancedStore.dispatch,
-				enhancedStore.subscribe,
-				actionsEmitter
-			);
-		});
-		return enhancedStore;
-	};
-	return newCreateStore;
-};
-
-function createAssistant<A extends Assistant<any>, S>(
+export function createAssistant<A extends Assistant<any>, S>(
 	config: AssistantConfig<A, S>,
 	getState: () => S,
 	dispatch: (action: any) => void,
 	subscribe: (callback: () => void) => Unsubscribe,
-	eventemitter: EventEmitter,
+	eventemitter: IEventEmitter,
 	onDestroy = () => {}
 ) {
 	const { create, select } = getCreateConfig(config);

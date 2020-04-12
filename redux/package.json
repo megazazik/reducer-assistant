@@ -1,0 +1,6 @@
+{
+  "main": "../dist/redux.js",
+  "module": "../dist-es/redux.js",
+  "types": "../dist/redux.d.ts",
+  "sideEffects": false
+}
