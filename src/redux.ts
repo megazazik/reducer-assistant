@@ -3,21 +3,41 @@ import {
 	Assistant,
 	AssistantConfig,
 	createAssistant,
-	BEFORE_ACTION_EVENT,
-	AFTER_ACTION_EVENT,
 	Configs,
+	IEventEmitter,
+	ActionEventName,
 } from '.';
-import EventEmitter from 'eventemitter3';
 
 export type AssistantEnhancer<S> = StoreEnhancer & {
 	applyAssistants(configs: Configs<S>): void;
 };
 
 class RootAssistant<S> extends Assistant<S> {
+	childrens: Array<Assistant<any>> = [];
+
 	applyAssistants(configs: Configs<S>) {
-		configs.forEach((config) => {
-			this.createAssistant(config);
-		});
+		this.childrens.forEach((child) => child.destroy());
+
+		this.childrens = configs.map((config) => this.createAssistant(config));
+	}
+}
+
+class EventEmitter implements IEventEmitter {
+	listeners = {
+		before: new Set<(action: any) => void>(),
+		after: new Set<(action: any) => void>(),
+	};
+
+	on(eventName: ActionEventName, callback: (action: any) => void): void {
+		this.listeners[eventName].add(callback);
+	}
+
+	remove(eventName: ActionEventName, callback: (action: any) => void): void {
+		this.listeners[eventName].delete(callback);
+	}
+
+	emit(eventName: ActionEventName, action: any) {
+		this.listeners[eventName].forEach((listener) => listener(action));
 	}
 }
 
@@ -59,9 +79,9 @@ const createEnhancer: <S>(
 				const store = createStore<any, any>(reducer, preloadedState);
 				const actionsEmitter = new EventEmitter();
 				const dispatch = (action: any, ...args: any[]) => {
-					actionsEmitter.emit(BEFORE_ACTION_EVENT, action);
+					actionsEmitter.emit('before', action);
 					const result = (store.dispatch as any)(action, ...args);
-					actionsEmitter.emit(AFTER_ACTION_EVENT, action);
+					actionsEmitter.emit('after', action);
 					return result;
 				};
 

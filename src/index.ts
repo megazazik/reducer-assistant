@@ -7,13 +7,19 @@ const onDestroySymbol = Symbol('onDestroy');
 
 type Unsubscribe = () => void;
 
-export const BEFORE_ACTION_EVENT = 'before';
-export const AFTER_ACTION_EVENT = 'after';
+export type ActionEventName = 'before' | 'after';
 
 export interface IEventEmitter {
-	on(eventName: string, callback: (action: any) => void): void;
-	removeListener(eventName: string, callback: (action: any) => void): void;
+	on(eventName: ActionEventName, callback: (action: any) => void): void;
+	remove(eventName: ActionEventName, callback: (action: any) => void): void;
 }
+
+type OnActionEvent =
+	| string
+	| {
+			(...args: any[]): any;
+			type?: string;
+	  };
 
 export abstract class Assistant<S> {
 	private prevState: Readonly<S>;
@@ -44,57 +50,35 @@ export abstract class Assistant<S> {
 	}
 
 	protected afterAction(
-		type: string,
+		type: OnActionEvent,
 		callback: (action: any) => void
 	): Unsubscribe;
 	protected afterAction(callback: (action: any) => void): Unsubscribe;
 	protected afterAction(
-		type: string | ((action: any) => void),
+		type: OnActionEvent,
 		callback?: (action: any) => void
 	) {
-		const afterCallback = (action: any) => {
-			if (typeof type === 'string') {
-				if (action.type === type) {
-					callback(action);
-				}
-				return;
-			}
-			type(action);
-		};
-		this[actionsEventEmitterSymbol].on(AFTER_ACTION_EVENT, afterCallback);
+		const afterCallback = createOnActionCallback(type, callback);
+		this[actionsEventEmitterSymbol].on('after', afterCallback);
 		return this.addUnsubscribe(() => {
-			this[actionsEventEmitterSymbol].removeListener(
-				AFTER_ACTION_EVENT,
-				afterCallback
-			);
+			this[actionsEventEmitterSymbol].remove('after', afterCallback);
 		});
 	}
 
 	protected beforeAction(
-		type: string,
+		type: OnActionEvent,
 		callback: (action: any) => void
 	): Unsubscribe;
 	protected beforeAction(callback: (action: any) => void): Unsubscribe;
 	protected beforeAction(
-		type: string | ((action: any) => void),
+		type: OnActionEvent,
 		callback?: (action: any) => void
 	) {
-		const beforeCallback = (action: any) => {
-			if (typeof type === 'string') {
-				if (action.type === type) {
-					callback(action);
-				}
-				return;
-			}
-			type(action);
-		};
-		this[actionsEventEmitterSymbol].on(BEFORE_ACTION_EVENT, beforeCallback);
+		const beforeCallback = createOnActionCallback(type, callback);
+		this[actionsEventEmitterSymbol].on('before', beforeCallback);
 
 		return this.addUnsubscribe(() => {
-			this[actionsEventEmitterSymbol].removeListener(
-				BEFORE_ACTION_EVENT,
-				beforeCallback
-			);
+			this[actionsEventEmitterSymbol].remove('before', beforeCallback);
 		});
 	}
 
@@ -150,6 +134,37 @@ export abstract class Assistant<S> {
 		this.assistants.add(newAssistant);
 		return newAssistant;
 	}
+}
+
+function createOnActionCallback(
+	type: OnActionEvent,
+	callback?: (action: any) => void
+) {
+	return (action: any) => {
+		if (typeof callback === 'function') {
+			if (typeof type === 'string' && action.type === type) {
+				callback(action);
+				return;
+			}
+
+			if (
+				typeof type === 'function' &&
+				typeof type.type === 'string' &&
+				action.type === type.type
+			) {
+				callback(action);
+				return;
+			}
+
+			if (typeof type === 'function' && action.type === type.toString()) {
+				callback(action);
+				return;
+			}
+
+			return;
+		}
+		(type as any)(action);
+	};
 }
 
 export type Configs<S> = Array<AssistantConfig<Assistant<any>, S>>;
