@@ -59,18 +59,18 @@ class IntervalAssistant extends Assistant {
 
 ## Configure redux store
 
-The `createAssistantEnhancer` function is used to setup store to work with assistants. It create a store enhancer with an `applyAssistants` method which receives an array of assistant consctructors or `AssistanConfig` objects (see [Assistant config](#assistant-config) section).
+The `createAssistantMiddleware` function is used to setup store to work with assistants. It create a middleware with an `applyAssistants` method which receives an array of assistant consctructors or `AssistanConfig` objects (see [Assistant config](#assistant-config) section).
 
 ```typescript
-import { createStore } from 'redux';
-import { createAssistantEnhancer } from 'reducer-assistant/redux';
+import { createStore, applyMiddleware } from 'redux';
+import { createAssistantMiddleware } from 'reducer-assistant/redux';
 import { assistants } from './assistants';
 
-const assistantEnhancer = createAssistantEnhancer();
+const assistantMiddleware = createAssistantMiddleware();
 
-const store = createStore(reducer, assistantEnhancer);
+const store = createStore(reducer, applyMiddleware(assistantMiddleware));
 
-assistantEnhancer.applyAssistants(assistants);
+assistantMiddleware.applyAssistants(assistants);
 ```
 
 You can invoke the `applyAssistants` method many times. All previous assistants will be destroyed.
@@ -262,7 +262,7 @@ There is no need to remove listeners of the base assistant class events such as 
 
 ## Assistant config
 
-To create assistants you can use the `applyAssistants` method of a store enhancer or the `createAssistant` method of an assistant. They receives `AssistantConfigs` values.
+To create assistants you can use the `applyAssistants` method of a middleware or the `createAssistant` method of an assistant. They receives `AssistantConfigs` values.
 
 The simplified `AssistantConfigs` type has the following form:
 
@@ -286,7 +286,7 @@ The simplest version of `AssistantConfigs` is an assistant's constructor.
 ```ts
 class MyAssistant extends Assustant {}
 
-enhancer.applyAssistants([MyAssistant]);
+middleware.applyAssistants([MyAssistant]);
 ```
 
 ### Constructor with select
@@ -325,13 +325,13 @@ type PageState = {
 When you create an assistant you can specify a part of state which will be managed by the assistant via `select` function of `AssistantConfig`.
 
 ```typescript
-enhancer.applyAssistants([
+middleware.applyAssistants([
 	{
 		Constructor: TimerAssistant,
 		/** select part of the PageState for TimerAssistant */
 		select: (fullstate) => fullstate.timer,
 	},
-]); // instead of enhancer.applyAssistants([TimerAssistant])
+]); // instead of middleware.applyAssistants([TimerAssistant])
 ```
 
 Now the `state` property of a `TimerAssistant`'s instance will return the `timer` field value of the page state. And listeners of the `onChange` event will be invoked only after the `timer` field changed.
@@ -360,7 +360,7 @@ import { ofStatePart } from 'reducer-assistant';
 
 /** all these calls are equal */
 
-enhancer.applyAssistants([
+middleware.applyAssistants([
 	{
 		Constructor: TimerAssistant,
 		/** select part of the PageState for TimerAssistant */
@@ -368,11 +368,11 @@ enhancer.applyAssistants([
 	},
 ]);
 
-enhancer.applyAssistants([
+middleware.applyAssistants([
 	ofStatePart((fullstate) => fullstate.timer, TimerAssistant),
 ]);
 
-enhancer.applyAssistants([ofStatePart('timer', TimerAssistant)]);
+middleware.applyAssistants([ofStatePart('timer', TimerAssistant)]);
 ```
 
 The first parameter of the `ofStatePart` is a `select` function or a field name of a whole state. The second parameter is an `AssistantConfig`.
@@ -383,7 +383,7 @@ You can pass an array of configs to it. Then the `ofStatePart` returns an array 
 ```ts
 import { ofStatePart } from 'reducer-assistant';
 
-enhancer.applyAssistants(
+middleware.applyAssistants(
 	ofStatePart(
 		(fullstate) => fullstate.timer,
 		[Assistant1, Assistant2, ...]
@@ -392,7 +392,7 @@ enhancer.applyAssistants(
 
 // or
 
-enhancer.applyAssistants(
+middleware.applyAssistants(
 	ofStatePart(
 		'timer',
 		[Assistant1, Assistant2, ...]
@@ -420,14 +420,14 @@ ofStatePart(
 Another form of `AssistantConfig` is the object with a `create` method instead of `Constructor`. A `create` method should return a new instance of `Assistant`. The following examples are equal.
 
 ```ts
-enhancer.applyAssistants([
+middleware.applyAssistants([
 	{
 		Constructor: TimerAssistant,
 		select: (fullstate) => fullstate.timer,
 	},
 ]);
 
-enhancer.applyAssistants([
+middleware.applyAssistants([
 	{
 		create: () => new TimerAssistant(),
 		select: (fullstate) => fullstate.timer,
@@ -475,5 +475,5 @@ function getAssistantConfig(url) {
 And then can use this helper.
 
 ```ts
-enhancer.applyAssistants([getAssistantConfig(url)]);
+middleware.applyAssistants([getAssistantConfig(url)]);
 ```

@@ -1,17 +1,16 @@
 const getStateSymbol = Symbol('getState');
 const dispatchSymbol = Symbol('dispatch');
-const subscribeSymbol = Symbol('subscribe');
 const actionsEventEmitterSymbol = Symbol('actionsEe');
 const initSymbol = Symbol('init');
 const onDestroySymbol = Symbol('onDestroy');
 
 type Unsubscribe = () => void;
 
-export type ActionEventName = 'before' | 'after';
+export type ActionEventName = 'before' | 'after' | 'change';
 
 export interface IEventEmitter {
-	on(eventName: ActionEventName, callback: (action: any) => void): void;
-	remove(eventName: ActionEventName, callback: (action: any) => void): void;
+	on(eventName: ActionEventName, callback: (action?: any) => void): void;
+	remove(eventName: ActionEventName, callback: (action?: any) => void): void;
 }
 
 type OnActionEvent =
@@ -27,7 +26,6 @@ export abstract class Assistant<S> {
 
 	public [getStateSymbol]: () => Readonly<S>;
 	public [dispatchSymbol]: { (action: any): void };
-	public [subscribeSymbol]: (callback: () => void) => Unsubscribe;
 	public [actionsEventEmitterSymbol]: IEventEmitter;
 	public [onDestroySymbol]: () => void;
 
@@ -40,13 +38,15 @@ export abstract class Assistant<S> {
 	}
 
 	protected onChange(callback: () => void) {
-		return this.addUnsubscribe(
-			this[subscribeSymbol](() => {
-				if (this.prevState !== this.state) {
-					callback();
-				}
-			})
-		);
+		const newCallback = () => {
+			if (this.prevState !== this.state) {
+				callback();
+			}
+		};
+		this[actionsEventEmitterSymbol].on('change', newCallback);
+		return this.addUnsubscribe(() => {
+			this[actionsEventEmitterSymbol].remove('change', newCallback);
+		});
 	}
 
 	protected afterAction(
@@ -125,7 +125,6 @@ export abstract class Assistant<S> {
 			config,
 			() => this.state,
 			this[dispatchSymbol],
-			this[subscribeSymbol],
 			this[actionsEventEmitterSymbol],
 			() => {
 				this.assistants.delete(newAssistant);
@@ -302,7 +301,6 @@ export function createAssistant<A extends Assistant<any>, S>(
 	config: AssistantConfig<A, S>,
 	getState: () => S,
 	dispatch: (action: any) => void,
-	subscribe: (callback: () => void) => Unsubscribe,
 	eventemitter: IEventEmitter,
 	onDestroy = () => {}
 ) {
@@ -311,7 +309,6 @@ export function createAssistant<A extends Assistant<any>, S>(
 
 	assistant[getStateSymbol] = () => select(getState());
 	assistant[dispatchSymbol] = dispatch;
-	assistant[subscribeSymbol] = subscribe;
 	assistant[actionsEventEmitterSymbol] = eventemitter;
 	assistant[onDestroySymbol] = onDestroy;
 

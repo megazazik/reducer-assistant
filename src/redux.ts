@@ -1,4 +1,4 @@
-import { StoreEnhancer, StoreEnhancerStoreCreator } from 'redux';
+import { Middleware } from 'redux';
 import {
 	Assistant,
 	AssistantConfig,
@@ -7,10 +7,6 @@ import {
 	IEventEmitter,
 	ActionEventName,
 } from '.';
-
-export type AssistantEnhancer<S> = StoreEnhancer & {
-	applyAssistants(configs: Configs<S>): void;
-};
 
 class RootAssistant<S> extends Assistant<S> {
 	childrens: Array<Assistant<any>> = [];
@@ -26,6 +22,7 @@ class EventEmitter implements IEventEmitter {
 	listeners = {
 		before: new Set<(action: any) => void>(),
 		after: new Set<(action: any) => void>(),
+		change: new Set<(action?: any) => void>(),
 	};
 
 	on(eventName: ActionEventName, callback: (action: any) => void): void {
@@ -36,18 +33,22 @@ class EventEmitter implements IEventEmitter {
 		this.listeners[eventName].delete(callback);
 	}
 
-	emit(eventName: ActionEventName, action: any) {
+	emit(eventName: ActionEventName, action?: any) {
 		this.listeners[eventName].forEach((listener) => listener(action));
 	}
 }
 
-export const createAssistantEnhancer = <S>() => {
-	const config = createEnhancer(RootAssistant);
-	const storeEnhancer: AssistantEnhancer<S> = config.enhancer as AssistantEnhancer<
+export type AssistantMiddleware<S> = Middleware & {
+	applyAssistants(configs: Configs<S>): void;
+};
+
+export const createAssistantMiddleware = <S>() => {
+	const config = createMiddleware(RootAssistant);
+	const middleware: AssistantMiddleware<S> = config.middleware as AssistantMiddleware<
 		S
 	>;
 
-	storeEnhancer.applyAssistants = (configs) => {
+	middleware.applyAssistants = (configs) => {
 		if (!config.rootAssistant) {
 			throw new Error(
 				'Could not apply assistants before state initialization'
@@ -57,49 +58,44 @@ export const createAssistantEnhancer = <S>() => {
 		config.rootAssistant.applyAssistants(configs);
 	};
 
-	return storeEnhancer;
+	return middleware;
 };
 
-const createEnhancer: <S>(
+const createMiddleware: <S>(
 	config: AssistantConfig<any, S>
 ) => {
 	rootAssistant: RootAssistant<S>;
-	enhancer: StoreEnhancer;
+	middleware: Middleware;
 } = (config) => {
-	const enhanceConfig: {
+	const middlewareConfig: {
 		rootAssistant: RootAssistant<any>;
-		enhancer: StoreEnhancer;
+		middleware: Middleware;
 	} = {
 		rootAssistant: null,
-		enhancer: (createStore) => {
-			const newCreateStore: StoreEnhancerStoreCreator<{}, {}> = (
-				reducer,
-				preloadedState
-			) => {
-				const store = createStore<any, any>(reducer, preloadedState);
-				const actionsEmitter = new EventEmitter();
-				const dispatch = (action: any, ...args: any[]) => {
-					actionsEmitter.emit('before', action);
-					const result = (store.dispatch as any)(action, ...args);
-					actionsEmitter.emit('after', action);
-					return result;
-				};
+		middleware: ({ dispatch, getState }) => {
+			const actionsEmitter = new EventEmitter();
+			middlewareConfig.rootAssistant = createAssistant(
+				config,
+				getState,
+				dispatch,
+				actionsEmitter
+			);
 
-				const enhancedStore = { ...store, dispatch };
+			return (next) => (action) => {
+				const prevState = getState();
+				actionsEmitter.emit('before', action);
 
-				enhanceConfig.rootAssistant = createAssistant(
-					config,
-					() => enhancedStore.getState(),
-					enhancedStore.dispatch,
-					enhancedStore.subscribe,
-					actionsEmitter
-				);
+				const result = next(action);
 
-				return enhancedStore;
+				if (prevState !== getState()) {
+					actionsEmitter.emit('change');
+				}
+				actionsEmitter.emit('after', action);
+
+				return result;
 			};
-			return newCreateStore;
 		},
 	};
 
-	return enhanceConfig;
+	return middlewareConfig;
 };

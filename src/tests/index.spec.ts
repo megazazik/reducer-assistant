@@ -1,13 +1,13 @@
 import tape from 'tape';
-import { createStore } from 'redux';
+import { createStore, applyMiddleware } from 'redux';
 import { spy } from 'sinon';
 import { Assistant } from '..';
-import { createAssistantEnhancer } from '../redux';
+import { createAssistantMiddleware } from '../redux';
 
 tape('Before / after action calls', (t) => {
-	const enhancer = createAssistantEnhancer();
+	const middleware = createAssistantMiddleware();
 	const reducer = spy(() => ({}));
-	const store = createStore(reducer, {}, enhancer);
+	const store = createStore(reducer, {}, applyMiddleware(middleware));
 
 	const action = { type: 'action' };
 
@@ -59,7 +59,7 @@ tape('Before / after action calls', (t) => {
 		});
 	}
 
-	enhancer.applyAssistants([TestAssistant]);
+	middleware.applyAssistants([TestAssistant]);
 
 	t.ok(reducer.calledOnce);
 
@@ -81,8 +81,8 @@ tape('Before / after action calls', (t) => {
 });
 
 tape('Before / after action with correct types', (t) => {
-	const enhancer = createAssistantEnhancer();
-	const store = createStore(() => {}, enhancer);
+	const middleware = createAssistantMiddleware();
+	const store = createStore(() => {}, applyMiddleware(middleware));
 
 	let assistant: TestAssistant;
 
@@ -147,7 +147,7 @@ tape('Before / after action with correct types', (t) => {
 		});
 	}
 
-	enhancer.applyAssistants([TestAssistant]);
+	middleware.applyAssistants([TestAssistant]);
 
 	store.dispatch({ type: 'noOne' });
 	store.dispatch({ type: 'beforeStr' });
@@ -165,6 +165,65 @@ tape('Before / after action with correct types', (t) => {
 	t.ok(assistant.afterStr.calledOnce);
 	t.ok(assistant.afterToString.calledOnce);
 	t.ok(assistant.afterType.calledOnce);
+
+	t.end();
+});
+
+tape('On change', (t) => {
+	const reducer = (state = { v1: 1, v2: '' }) => ({
+		...state,
+		v1: state.v1 + 1,
+	});
+
+	const middleware = createAssistantMiddleware<ReturnType<typeof reducer>>();
+
+	const store = createStore(reducer, applyMiddleware(middleware));
+
+	class TestAssistant<S> extends Assistant<S> {
+		constructor(private onChangeParam: (s: any) => void) {
+			super();
+		}
+
+		onInit() {
+			this.onChange(() => this.onChangeParam(this.state));
+		}
+	}
+
+	const onChaneFull = spy((s: any) => {});
+	const onChaneV1 = spy((s: any) => {});
+	const onChaneV2 = spy((s: any) => {});
+
+	middleware.applyAssistants([
+		{ create: () => new TestAssistant(onChaneFull) },
+		{
+			create: () => new TestAssistant(onChaneV1),
+			select: (s) => s.v1,
+		},
+		{
+			create: () => new TestAssistant(onChaneV2),
+			select: (s) => s.v2,
+		},
+	]);
+
+	t.ok(onChaneFull.notCalled);
+	t.ok(onChaneV1.notCalled);
+	t.ok(onChaneV2.notCalled);
+
+	store.dispatch({ type: 'myaction' });
+
+	t.ok(onChaneFull.calledOnce);
+	t.deepEqual(onChaneFull.args[0], [{ v1: 3, v2: '' }]);
+	t.ok(onChaneV1.calledOnce);
+	t.deepEqual(onChaneV1.args[0], [3]);
+	t.ok(onChaneV2.notCalled);
+
+	store.dispatch({ type: 'myaction' });
+
+	t.ok(onChaneFull.calledTwice);
+	t.deepEqual(onChaneFull.args[1], [{ v1: 4, v2: '' }]);
+	t.ok(onChaneV1.calledTwice);
+	t.deepEqual(onChaneV1.args[1], [4]);
+	t.ok(onChaneV2.notCalled);
 
 	t.end();
 });
