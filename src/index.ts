@@ -166,40 +166,49 @@ function createOnActionCallback(
 	};
 }
 
-export type Configs<S> = Array<AssistantConfig<Assistant<any>, S>>;
+// export type Configs<S> = Array<AssistantConfig<Assistant<any>, S>>;
+export type Configs<S> = Array<AssistantConfig<Assistant<S>, any>>;
 
-export function ofStatePart<K extends string, A extends Assistant<any>>(
-	select: K,
-	config: { new (): A }
-): AssistantConfig<A, { [P in K]: StateOfAssistant<A> }>;
-export function ofStatePart<NewS, A extends Assistant<any>>(
-	select: (s: NewS) => StateOfAssistant<A>,
-	config: { new (): A }
-): AssistantConfig<A, NewS>;
-export function ofStatePart<
-	K extends string,
-	A extends Assistant<any>,
-	S = StateOfAssistant<A>
->(
-	select: K,
-	config: ConstructorAssistantConfig<A, S> | CreateAssistantConfig<A, S>
-): AssistantConfig<A, { [P in K]: S }>;
-export function ofStatePart<
-	NewS,
-	A extends Assistant<any>,
-	S = StateOfAssistant<A>
->(
-	select: (s: NewS) => S,
-	config: ConstructorAssistantConfig<A, S> | CreateAssistantConfig<A, S>
-): AssistantConfig<A, NewS>;
-export function ofStatePart<K extends string, S>(
-	select: K,
+// export function ofStatePart<K extends string, A extends Assistant<any>>(
+// 	select: K,
+// 	config: { new (): A }
+// ): AssistantConfig<A, { [P in K]: StateOfAssistant<A> }>;
+// export function ofStatePart<NewS, A extends Assistant<any>>(
+// 	select: (s: NewS) => StateOfAssistant<A>,
+// 	config: { new (): A }
+// ): AssistantConfig<A, NewS>;
+// export function ofStatePart<
+// 	K extends string,
+// 	A extends Assistant<any>,
+// 	S = StateOfAssistant<A>
+// >(
+// 	select: K,
+// 	config: ConstructorAssistantConfig<A, S> | CreateAssistantConfig<A, S>
+// ): AssistantConfig<A, { [P in K]: S }>;
+// export function ofStatePart<
+// 	NewS,
+// 	A extends Assistant<any>,
+// 	S = StateOfAssistant<A>
+// >(
+// 	select: (s: NewS) => S,
+// 	config: ConstructorAssistantConfig<A, S> | CreateAssistantConfig<A, S>
+// ): AssistantConfig<A, NewS>;
+// export function ofStatePart<K extends string, S>(
+// 	select: K,
+// 	configs: Configs<S>
+// ): Configs<{ [P in K]: S }>;
+// export function ofStatePart<NewS, S>(
+// 	select: (s: NewS) => S,
+// 	configs: Configs<S>
+// ): Configs<NewS>;
+export function ofStatePart<S>(
+	select: ((s: any) => any) | string,
 	configs: Configs<S>
-): Configs<{ [P in K]: S }>;
-export function ofStatePart<NewS, S>(
-	select: (s: NewS) => S,
-	configs: Configs<S>
-): Configs<NewS>;
+): Configs<any>;
+export function ofStatePart<S>(
+	select: ((s: any) => any) | string,
+	configs: AssistantConfig<Assistant<S>, any>
+): AssistantConfig<Assistant<any>, any>;
 /** Implementation */
 export function ofStatePart(
 	select: string | ((s: any) => any),
