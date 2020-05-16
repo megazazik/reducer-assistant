@@ -13,12 +13,12 @@ export interface IEventEmitter {
 	remove(eventName: ActionEventName, callback: (action?: any) => void): void;
 }
 
-type OnActionEvent =
-	| string
-	| {
-			(...args: any[]): any;
-			type?: string;
-	  };
+type ActionCreator<R = any> = {
+	(...args: any[]): R;
+	type?: string;
+};
+
+type OnActionEvent = string | ActionCreator;
 
 export abstract class Assistant<S> {
 	private prevState: Readonly<any>;
@@ -50,8 +50,12 @@ export abstract class Assistant<S> {
 	}
 
 	protected afterAction(
-		type: OnActionEvent,
+		type: string,
 		callback: (action: any) => void
+	): Unsubscribe;
+	protected afterAction<Action>(
+		type: ActionCreator<Action>,
+		callback: (action: Action) => void
 	): Unsubscribe;
 	protected afterAction(callback: (action: any) => void): Unsubscribe;
 	protected afterAction(
@@ -66,8 +70,12 @@ export abstract class Assistant<S> {
 	}
 
 	protected beforeAction(
-		type: OnActionEvent,
+		type: string,
 		callback: (action: any) => void
+	): Unsubscribe;
+	protected beforeAction<Action>(
+		type: ActionCreator<Action>,
+		callback: (action: Action) => void
 	): Unsubscribe;
 	protected beforeAction(callback: (action: any) => void): Unsubscribe;
 	protected beforeAction(
