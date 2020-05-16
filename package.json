@@ -1,6 +1,6 @@
 {
   "name": "reducer-assistant",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Library to create async action controllers for reducers",
   "main": "dist/index.js",
   "module": "dist-es/index.js",

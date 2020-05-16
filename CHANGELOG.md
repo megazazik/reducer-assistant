@@ -1,4 +1,13 @@
-## 0.3.1 (2020-05-14)
+## [0.3.2](https://github.com/megazazik/reducer-assistant/compare/v0.3.1...v0.3.2) (2020-05-16)
+
+
+### Bug Fixes
+
+* **types:** fix types of the ofStatePart function ([9543c80](https://github.com/megazazik/reducer-assistant/commit/9543c80ff3841dd82b0684c9b9b036f0fc7cba19))
+
+
+
+## [0.3.1](https://github.com/megazazik/reducer-assistant/compare/e4d886db6dae11e2c28fb1228955cfdb15e5fc32...v0.3.1) (2020-05-14)
 
 
 ### Bug Fixes
