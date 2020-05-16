@@ -170,28 +170,33 @@ tape('Before / after action with correct types', (t) => {
 });
 
 tape('On change', (t) => {
-	const reducer = (state = { v1: 1, v2: '' }) => ({
-		...state,
-		v1: state.v1 + 1,
-	});
+	const reducer = (state = { v1: 0, v2: '' }, { type }: { type: string }) =>
+		type === 'myaction'
+			? {
+					...state,
+					v1: state.v1 + 1,
+			  }
+			: state;
 
 	const middleware = createAssistantMiddleware<ReturnType<typeof reducer>>();
 
 	const store = createStore(reducer, applyMiddleware(middleware));
 
 	class TestAssistant<S> extends Assistant<S> {
-		constructor(private onChangeParam: (s: any) => void) {
+		constructor(private onChangeParam: (s: any, prevState: S) => void) {
 			super();
 		}
 
 		onInit() {
-			this.onChange(() => this.onChangeParam(this.state));
+			this.onChange((prevState) =>
+				this.onChangeParam(this.state, prevState)
+			);
 		}
 	}
 
-	const onChaneFull = spy((s: any) => {});
-	const onChaneV1 = spy((s: any) => {});
-	const onChaneV2 = spy((s: any) => {});
+	const onChaneFull = spy((s: any, p: any) => {});
+	const onChaneV1 = spy((s: any, p: any) => {});
+	const onChaneV2 = spy((s: any, p: any) => {});
 
 	middleware.applyAssistants([
 		{
@@ -215,17 +220,21 @@ tape('On change', (t) => {
 	store.dispatch({ type: 'myaction' });
 
 	t.ok(onChaneFull.calledOnce);
-	t.deepEqual(onChaneFull.args[0], [{ v1: 3, v2: '' }]);
+	t.deepEqual(onChaneFull.args[0][0], { v1: 1, v2: '' });
+	t.deepEqual(onChaneFull.args[0][1], { v1: 0, v2: '' });
 	t.ok(onChaneV1.calledOnce);
-	t.deepEqual(onChaneV1.args[0], [3]);
+	t.deepEqual(onChaneV1.args[0][0], 1);
+	t.deepEqual(onChaneV1.args[0][1], 0);
 	t.ok(onChaneV2.notCalled);
 
 	store.dispatch({ type: 'myaction' });
 
 	t.ok(onChaneFull.calledTwice);
-	t.deepEqual(onChaneFull.args[1], [{ v1: 4, v2: '' }]);
+	t.deepEqual(onChaneFull.args[1][0], { v1: 2, v2: '' });
+	t.deepEqual(onChaneFull.args[1][1], { v1: 1, v2: '' });
 	t.ok(onChaneV1.calledTwice);
-	t.deepEqual(onChaneV1.args[1], [4]);
+	t.deepEqual(onChaneV1.args[1][0], 2);
+	t.deepEqual(onChaneV1.args[1][1], 1);
 	t.ok(onChaneV2.notCalled);
 
 	t.end();

@@ -140,12 +140,13 @@ class MyAssistant extends Assistant {
 
 ### onChange
 
-Listeners passed to `onChange` will be invoked when the state has changed after any action. An assistant can watch to changes of the whole state or some part of state. To see how to watch to a part of state see [Assistant config](#assistant-config) section.
+Listeners passed to `onChange` will be invoked when the state has been changed after any action. An assistant can watch to changes of the whole state or some part of state. To see how to watch to a part of state see [Assistant config](#assistant-config) section. A function passed to `onChange` receives a previous state as a parameter.
 
 ```typescript
 class MyAssistant extends Assistant {
 	onInit() {
-		this.onChange(() => {
+		this.onChange((prevState) => {
+			console.log('previous state', prevState);
 			console.log('new state', this.state);
 		});
 	}
@@ -156,18 +157,15 @@ The `onChange` method return a function to unsubscribe events.
 
 ```typescript
 class MyAssistant extends Assistant {
-	unsubscribe = null;
-
 	onInit() {
-		/** add 'onChange' listener */
-		this.afterAction('ACTION1', (action) => {
-			this.unsubscribe = this.onChange(() => {
-				console.log('new state action', this.state);
-			});
+		/** add onChange listener */
+		const unsubscribe = this.onChange(() => {
+			console.log('new state action', this.state);
 		});
+
 		/** remove listener  */
-		this.afterAction('ACTION2', (action) => {
-			this.unsubscribe();
+		this.afterAction('UNSUBSCRIBE', () => {
+			unsubscribe();
 		});
 	}
 }

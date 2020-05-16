@@ -37,10 +37,10 @@ export abstract class Assistant<S> {
 		return this[getStateSymbol]();
 	}
 
-	protected onChange(callback: () => void) {
+	protected onChange(callback: (prevState: S) => void) {
 		const newCallback = () => {
 			if (this.prevState !== this.state) {
-				callback();
+				callback(this.prevState);
 			}
 		};
 		this[actionsEventEmitterSymbol].on('change', newCallback);
