@@ -194,7 +194,10 @@ tape('On change', (t) => {
 	const onChaneV2 = spy((s: any) => {});
 
 	middleware.applyAssistants([
-		{ create: () => new TestAssistant(onChaneFull) },
+		{
+			create: () =>
+				new TestAssistant<ReturnType<typeof reducer>>(onChaneFull),
+		},
 		{
 			create: () => new TestAssistant(onChaneV1),
 			select: (s) => s.v1,

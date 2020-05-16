@@ -21,7 +21,7 @@ type OnActionEvent =
 	  };
 
 export abstract class Assistant<S> {
-	private prevState: Readonly<S>;
+	private prevState: Readonly<any>;
 	private unsubscribes = new Set<Unsubscribe>();
 
 	public [getStateSymbol]: () => Readonly<S>;
@@ -118,7 +118,7 @@ export abstract class Assistant<S> {
 
 	private readonly assistants = new Set<Assistant<any>>();
 
-	protected createAssistant<A extends Assistant<any>>(
+	protected createAssistant<A extends Assistant<unknown>>(
 		config: AssistantConfig<A, S>
 	) {
 		const newAssistant: A = createAssistant(
@@ -166,49 +166,54 @@ function createOnActionCallback(
 	};
 }
 
-// export type Configs<S> = Array<AssistantConfig<Assistant<any>, S>>;
-export type Configs<S> = Array<AssistantConfig<Assistant<S>, any>>;
-
-// export function ofStatePart<K extends string, A extends Assistant<any>>(
-// 	select: K,
-// 	config: { new (): A }
-// ): AssistantConfig<A, { [P in K]: StateOfAssistant<A> }>;
-// export function ofStatePart<NewS, A extends Assistant<any>>(
-// 	select: (s: NewS) => StateOfAssistant<A>,
-// 	config: { new (): A }
-// ): AssistantConfig<A, NewS>;
-// export function ofStatePart<
-// 	K extends string,
-// 	A extends Assistant<any>,
-// 	S = StateOfAssistant<A>
-// >(
-// 	select: K,
-// 	config: ConstructorAssistantConfig<A, S> | CreateAssistantConfig<A, S>
-// ): AssistantConfig<A, { [P in K]: S }>;
-// export function ofStatePart<
-// 	NewS,
-// 	A extends Assistant<any>,
-// 	S = StateOfAssistant<A>
-// >(
-// 	select: (s: NewS) => S,
-// 	config: ConstructorAssistantConfig<A, S> | CreateAssistantConfig<A, S>
-// ): AssistantConfig<A, NewS>;
-// export function ofStatePart<K extends string, S>(
-// 	select: K,
-// 	configs: Configs<S>
-// ): Configs<{ [P in K]: S }>;
-// export function ofStatePart<NewS, S>(
-// 	select: (s: NewS) => S,
-// 	configs: Configs<S>
-// ): Configs<NewS>;
-export function ofStatePart<S>(
-	select: ((s: any) => any) | string,
+export function ofStatePart<NewS, S>(
+	select: (s: NewS) => S,
 	configs: Configs<S>
-): Configs<any>;
-export function ofStatePart<S>(
-	select: ((s: any) => any) | string,
-	configs: AssistantConfig<Assistant<S>, any>
-): AssistantConfig<Assistant<any>, any>;
+): Array<SelectCreateAssistantConfig<Assistant<unknown>, NewS>>;
+
+export function ofStatePart<K extends string, S>(
+	select: K,
+	configs: Configs<S>
+): Array<SelectCreateAssistantConfig<Assistant<unknown>, { [P in K]: S }>>;
+
+export function ofStatePart<
+	K extends string,
+	A extends Assistant<unknown>,
+	S = StateOfAssistant<A>
+>(
+	select: K,
+	config:
+		| SelectConstructorAssistantConfig<A, S>
+		| SelectCreateAssistantConfig<A, S>
+): SelectCreateAssistantConfig<A, { [P in K]: S }>;
+
+export function ofStatePart<
+	NewS,
+	A extends Assistant<unknown>,
+	S = StateOfAssistant<A>
+>(
+	select: (s: NewS) => S,
+	config:
+		| SelectConstructorAssistantConfig<A, S>
+		| SelectCreateAssistantConfig<A, S>
+): SelectCreateAssistantConfig<A, NewS>;
+
+export function ofStatePart<K extends string, A extends Assistant<unknown>>(
+	select: K,
+	config:
+		| { new (): A }
+		| SimpleConstructorAssistantConfig<A, StateOfAssistant<A>>
+		| SimpleCreateAssistantConfig<A>
+): SelectCreateAssistantConfig<A, { [P in K]: StateOfAssistant<A> }>;
+
+export function ofStatePart<NewS, A extends Assistant<unknown>>(
+	select: (s: NewS) => StateOfAssistant<A>,
+	config:
+		| { new (): A }
+		| SimpleConstructorAssistantConfig<A, StateOfAssistant<A>>
+		| SimpleCreateAssistantConfig<A>
+): SelectCreateAssistantConfig<A, NewS>;
+
 /** Implementation */
 export function ofStatePart(
 	select: string | ((s: any) => any),
@@ -229,7 +234,7 @@ function innerAddSelect(
 	const createConfig = getCreateConfig(config);
 	return {
 		create: createConfig.create,
-		select: (s) => createConfig.select(select(s)),
+		select: (s) => createConfig.select?.(select(s)),
 	};
 }
 
@@ -237,33 +242,68 @@ type StateOfAssistant<A extends Assistant<any>> = A extends Assistant<infer S>
 	? S
 	: never;
 
+/** Порядок типов в перечислении важен. Не менять! */
+export type Configs<S> = Array<
+	| { new (): Assistant<S> }
+	| SelectConstructorAssistantConfig<Assistant<unknown>, S>
+	| SimpleConstructorAssistantConfig<Assistant<S>>
+	| SelectCreateAssistantConfig<Assistant<unknown>, S>
+	| SimpleCreateAssistantConfig<Assistant<S>>
+>;
+
 export type AssistantConfig<
-	A extends Assistant<any>,
+	A extends Assistant<unknown>,
 	S = StateOfAssistant<A>
 > =
-	| { new (): A }
-	| ConstructorAssistantConfig<A, S>
-	| CreateAssistantConfig<A, S>;
+	| { new (): A & Assistant<S> }
+	| SelectConstructorAssistantConfig<A, S>
+	| SimpleConstructorAssistantConfig<A, S>
+	| SelectCreateAssistantConfig<A, S>
+	| SimpleCreateAssistantConfig<A, S>;
 
-type ConstructorAssistantConfig<
-	A extends Assistant<any>,
+export type ConstructorAssistantConfig<
+	A extends Assistant<unknown>,
+	S = StateOfAssistant<A>
+> =
+	| SimpleConstructorAssistantConfig<A>
+	| SelectConstructorAssistantConfig<A, S>;
+
+export type SimpleConstructorAssistantConfig<
+	A extends Assistant<unknown>,
 	S = StateOfAssistant<A>
 > = {
-	Constructor: { new (): A };
-	select?: (s: S) => StateOfAssistant<A>;
+	Constructor: { new (): A & Assistant<S> };
 };
 
-type CreateAssistantConfig<
-	A extends Assistant<any>,
+export type SelectConstructorAssistantConfig<
+	A extends Assistant<unknown>,
+	S = StateOfAssistant<A>
+> = SimpleConstructorAssistantConfig<A> & {
+	select: (s: S) => StateOfAssistant<A>;
+};
+
+export type CreateAssistantConfig<
+	A extends Assistant<unknown>,
+	S = StateOfAssistant<A>
+> = SimpleCreateAssistantConfig<A> | SelectCreateAssistantConfig<A, S>;
+
+export type SimpleCreateAssistantConfig<
+	A extends Assistant<unknown>,
 	S = StateOfAssistant<A>
 > = {
-	create: () => A;
-	select?: (s: S) => StateOfAssistant<A>;
+	create: () => A & Assistant<S>;
+};
+
+export type SelectCreateAssistantConfig<
+	A extends Assistant<unknown>,
+	S = StateOfAssistant<A>
+> = SimpleCreateAssistantConfig<A> & {
+	select: (s: S) => StateOfAssistant<A>;
 };
 
 function getCreateConfig<A extends Assistant<any>, S>(
 	config: AssistantConfig<A, S>
-): CreateAssistantConfig<A, S> {
+): SelectCreateAssistantConfig<A, S> {
 	if (typeof config === 'function') {
 		return {
 			select: (s) => s as any,
@@ -273,7 +313,9 @@ function getCreateConfig<A extends Assistant<any>, S>(
 
 	if (isConstructorConfig(config)) {
 		return {
-			select: config.select || ((s) => s as any),
+			select:
+				(config as SelectConstructorAssistantConfig<A, S>).select ||
+				((s) => s as any),
 			create: () => new config.Constructor(),
 		};
 	}
@@ -281,7 +323,9 @@ function getCreateConfig<A extends Assistant<any>, S>(
 	if (isCreateConfig(config)) {
 		return {
 			create: config.create,
-			select: config.select || ((s) => s as any),
+			select:
+				(config as SelectCreateAssistantConfig<A, S>).select ||
+				((s) => s as any),
 		};
 	}
 
@@ -306,7 +350,7 @@ function isCreateConfig<A extends Assistant<any>, S>(
 	);
 }
 
-export function createAssistant<A extends Assistant<any>, S>(
+export function createAssistant<A extends Assistant<unknown>, S>(
 	config: AssistantConfig<A, S>,
 	getState: () => S,
 	dispatch: (action: any) => void,
@@ -316,7 +360,8 @@ export function createAssistant<A extends Assistant<any>, S>(
 	const { create, select } = getCreateConfig(config);
 	const assistant = create();
 
-	assistant[getStateSymbol] = () => select(getState());
+	assistant[getStateSymbol] = () =>
+		(select || ((s: any) => s))(getState()) as any;
 	assistant[dispatchSymbol] = dispatch;
 	assistant[actionsEventEmitterSymbol] = eventemitter;
 	assistant[onDestroySymbol] = onDestroy;
