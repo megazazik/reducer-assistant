@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc && tsc -p tsconfig.es.json",
-    "version": "npm run build && conventional-changelog -p angular -i CHANGELOG.md -s -r 0 && git add CHANGELOG.md",
+    "version": "npm test && npm run build && conventional-changelog -p angular -i CHANGELOG.md -s -r 0 && git add CHANGELOG.md",
     "commit": "git-cz",
     "test": "npm run unit-test && npm run type-test",
     "unit-test": "ts-node node_modules/tape/bin/tape ./src/**/*.spec.ts",
