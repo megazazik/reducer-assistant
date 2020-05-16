@@ -1,3 +1,13 @@
+# [0.4.0](https://github.com/megazazik/reducer-assistant/compare/v0.3.2...v0.4.0) (2020-05-16)
+
+
+### Features
+
+* **onchange:** add a previous state as a parameter of onChange callbacks ([86d3264](https://github.com/megazazik/reducer-assistant/commit/86d326423a112901da974c26f0e9cb2f1d49b10a))
+* **types:** infer type of action when action creators are passed to beforeAction / afterAction ([efc29fa](https://github.com/megazazik/reducer-assistant/commit/efc29fa7b2cdceeb83d3696f33bfa58ce1404cf4))
+
+
+
 ## [0.3.2](https://github.com/megazazik/reducer-assistant/compare/v0.3.1...v0.3.2) (2020-05-16)
 
 
