@@ -4,12 +4,45 @@
 
 Library to manage side effects and async logic in applications using `redux` for state management. If you use `redux` but you don't like a complexity of sush solutions as `redux-saga` or `redux-observable`, you can manage your side effects with classes now.
 
-## Usage example
+-   [Getting started](#getting-started)
+-   [Basic features (how to)](#basic-features-how-to)
+    -   [Perform some operation when an assistant starts to work](#perform-some-operation-when-an-assistant-starts-to-work)
+    -   [Subscribe to actions](#subscribe-to-actions)
+    -   [Subscribe to state changes](#subscribe-to-state-changes)
+    -   [Access to state](#access-to-state)
+    -   [Dispatch actions](#dispatch-actions)
+    -   [Connect assistants to a store](#connect-assistants-to-a-store)
+    -   [Connect assistants to a store inside other assistants](#connect-assistants-to-a-store-inside-other-assistants)
+    -   [Pass parameters to assistants](#pass-parameters-to-assistants)
+    -   [Connect assistants to a part of a store](#connect-assistants-to-a-part-of-a-store)
+    -   [Stop assistants and remove any subscription](#stop-assistants-and-remove-any-subscription)
+-   [Assistant API](#assistant-api)
+-   [Assistant config](#assistant-config)
+
+## Getting started
+
+_Assistants_ are managers of async effects for reducers. Inside an assistant you can fetch data, start timers or make any other async operations, you can subscribe to state changes and action dispatching. Also you can get a current state or dispatch an action during any async operation.
+
+To start using assistants you should configure a redux store with an `AssistantsMiddleware`.
+
+```typescript
+import { createStore, applyMiddleware } from 'redux';
+import { createAssistantMiddleware } from 'reducer-assistant/redux';
+
+const assistantMiddleware = createAssistantMiddleware();
+
+const store = createStore(reducer, applyMiddleware(assistantMiddleware));
+```
+
+Now you can create an assistant. This is an example of an assistant which starts fetching data after the `FETCH_START` action, and dispatches the `FETCH_SUCCESS` or `FETCH_ERROR` actions when the request is complete.
 
 ```typescript
 import { Assistant } from 'reducer-assistant';
 
-class FetchDataAssistant extends Assistant {
+/**
+ * To create an assistant you should create a class which extends a base Assistant class
+ */
+export class FetchDataAssistant extends Assistant {
 	/**
 	 * onInit runs when an assistant starts
 	 *
@@ -34,46 +67,258 @@ class FetchDataAssistant extends Assistant {
 		}
 	};
 }
+```
 
-class IntervalAssistant extends Assistant {
-	/** you can use any fields as in usual classes */
-	intervalId = null;
+Now you can connect the assistant to the store via a `applyAssistants` method of `AssistantMiddleware`.
 
-	onInit() {
-		/** add listener for 'INCREMENT_START' action */
-		this.afterAction('INCREMENT_START', (action) => {
-			this.intervalId = setInterval(this.incrementValue, action.timeout);
-		});
+```typescript
+import { FetchDataAssistant } from './fetchDataAssistant';
 
-		this.afterAction('INCREMENT_STOP', () => {
-			clearInterval(this.intervalId);
-		});
+...
+
+assistantMiddleware.applyAssistants([FetchDataAssistant]);
+```
+
+After that a new `FetchDataAssistant` instance will be created and it will start to listen to the `FETCH_START` actions to make a request. Now you can dispatch the `FETCH_START` action anywhere in your application to fetch data.
+
+```typescript
+store.dispatch({ type: 'FETCH_START', url: 'https://github.com' });
+```
+
+## Basic features (How to)
+
+### Perform some operation when an assistant starts to work
+
+When an assistant instance is created, it is not completely ready to work yet. It should be connected to store first. So you must not use any methods of the base Assistant inside your assistant's constructor. Use them inside the `onInit` method or after it. It runs almost immediately after the constructor.
+
+```js
+class MyAssistant extends Assistant {
+	constructor() {
+		super();
+		/** Do not use any base Assistant methods here */
 	}
 
-	incrementValue = () => {
-		/** increase value */
-		this.dispatch({ type: 'SET_VALUE', value: this.state.value + 1 });
-	};
+	onInit() {
+		/** Here you can perform any operations */
+	}
 }
 ```
 
-## Configure redux store
+### Subscribe to actions
 
-The `createAssistantMiddleware` function is used to setup store to work with assistants. It create a middleware with an `applyAssistants` method which receives an array of assistant consctructors or `AssistanConfig` objects (see [Assistant config](#assistant-config) section).
+You can use `beforeAction` and `afterAction` methods to perform some operation when actions are dispatched.
+
+```js
+class MyAssistant extends Assistant {
+	onInit() {
+		/** Subscribe to any action */
+		this.afterAction((action) => {
+			console.log('action', action);
+		});
+
+		/** Subscribe to an action of type 'MY_ACTION' */
+		this.afterAction('MY_ACTION', (action) => {
+			console.log('action', action);
+		});
+	}
+}
+```
+
+You can use an action creator function instead of a string as action type. In this case the action creator must have a `toString` method or contain a `type` field which return type of action as string.
+
+```js
+const createAction = () => ({ type: 'MY_ACTION' });
+
+createAction.toString = () => 'MY_ACTION';
+// or
+createAction.type = 'MY_ACTION';
+
+class MyAssistant extends Assistant {
+	onInit() {
+		this.afterAction(createAction, (action) => {
+			console.log('action', action);
+		});
+	}
+}
+```
+
+The `beforeAction` and `afterAction` methods return a function to unsubscribe these events.
+
+### Subscribe to state changes
+
+You can use `onChange` method to perform some operation when state is changed.
+
+```js
+class MyAssistant extends Assistant {
+	onInit() {
+		this.onChange((prevState) => {
+			console.log('previous state', prevState);
+			console.log('new state', this.state);
+		});
+	}
+}
+```
+
+The `onChange` method returns a function to unsubscribe this event.
+
+### Access to state
+
+You have access to current state inside any method of assistant via the `state` getter. You can not use it before the `onInit` method call.
+
+```js
+class MyAssistant extends Assistant {
+	onInit() {
+		console.log('current state', this.state);
+	}
+}
+```
+
+### Dispatch actions
+
+You dispatch any actions inside any method of assistant via the `dispatch` method. You can not use it before the `onInit` method call.
+
+```js
+class MyAssistant extends Assistant {
+	onInit() {
+		this.dispatch({ type: 'MY_ACTION' });
+	}
+}
+```
+
+### Connect assistants to a store
+
+An assistant should be connected to a store to start to work. You can do it via `applyAssistants` method of an `AssistantMiddleware`. The `applyAssistants` method receives an array of assistant constructors or assistant configs (see [Assistant config](#assistant-config)).
 
 ```typescript
 import { createStore, applyMiddleware } from 'redux';
 import { createAssistantMiddleware } from 'reducer-assistant/redux';
-import { assistants } from './assistants';
+import { Assistant } from 'reducer-assistant';
 
 const assistantMiddleware = createAssistantMiddleware();
 
 const store = createStore(reducer, applyMiddleware(assistantMiddleware));
 
-assistantMiddleware.applyAssistants(assistants);
+class MyAssistant extends Assistant {
+	/* ...*/
+}
+
+assistantMiddleware.applyAssistants([MyAssistant]);
 ```
 
 You can invoke the `applyAssistants` method many times. All previous assistants will be destroyed.
+
+### Connect assistants to a store inside other assistants
+
+You can start some assistant inside another assistant via the `createAssistant` method.
+
+```ts
+class AnotherAssistant extends Assistant {
+	/* ... */
+}
+
+class MyAssistant extends Assistant {
+	onInit() {
+		const anotherAssistantInstance = this.createAssistant(AnotherAssistant);
+	}
+}
+```
+
+### Pass parameters to assistants
+
+Assistant configs passed to `applyAssistants` or `createAssistant` methods must not require any parameters. If they need some parameters, they should be configured before `applyAssistants` or `createAssistant` calls.
+
+Consider some assistant requires the outer `url` parameter.
+
+You can create a function which returns a new assistant class.
+
+```ts
+function createAssistant(url) {
+	return class FetchAssistant extends Assistant {
+		onInit() {
+			fetch(url).then(/* ... */);
+		}
+	};
+}
+
+middleware.applyAssistants([createAssistant(url)]);
+```
+
+Or you can create an assistant with a parameter in constructor and a function which returns a `AssistantConfig` (see [Assistant config](#assistant-config)) configured with an url.
+
+```ts
+class FetchAssistant extends Assistant {
+	constructor(url) {
+		super();
+		this.url = url;
+	}
+
+	/** ... */
+}
+
+function getAssistantConfig(url) {
+	return {
+		create: () => new FetchAssistant(url);
+	}
+}
+
+middleware.applyAssistants([getAssistantConfig(url)]);
+```
+
+### Connect assistants to a part of a store
+
+Usually reducers are responsible only for a part of a page state. If you write an assistant for such reducer, you would like the assistant to be responsible for the same part of the state.
+
+Consider you have a timer reducer which returns a number. You can create an assistant which expect its state to be also a number.
+
+```typescript
+const timerReducer = (state: number, action): number => {
+	/* ... */
+};
+
+class TimerAssistant extends Assistant<number> {}
+```
+
+Then you can set the `timerReducer` to work with a `timer` field of the page state.
+
+```typescript
+const rootReducer = combineReducers({
+	/* ... */
+	timer: timerReducer,
+});
+```
+
+And you can set the `TimerAssistant` to work with a `timer` field of the page state to via the `ofStatePart` function. See [Assistant config](#assistant-config) for details.
+
+```ts
+import { ofStatePart } from 'reducer-assistant';
+
+middleware.applyAssistants([ofStatePart('timer', TimerAssistant)]);
+```
+
+### Stop assistants and remove any subscription
+
+If you need to stop an assistant for some reason you can use the `destroy` method of assistants.
+
+```typescript
+class MyAssistant extends Assistant {
+	childAssistant = null;
+
+	onInit() {
+		this.childAssistant = this.createAssistant(ChildAssistant);
+
+		this.afterAction('DESTROY', () => {
+			/** destroy the current assistant instance */
+			this.destroy();
+		});
+
+		this.afterAction('DESTROY_CHILD', () => {
+			this.childAssistant.destroy();
+		});
+	}
+}
+```
+
+When your assistant is being destroyed there is no need to unsubscribe to any base assistant events such as `afterAction`, `onChange` or destroy child assistants. But if you have subscribed to any extenral resource you should unsubscribe to them before your assistant is destroyed. You can do it inside the [onDestroy](#ondestroy) method.
 
 ## Assistant API
 
@@ -260,9 +505,9 @@ There is no need to remove listeners of the base assistant class events such as 
 
 ## Assistant config
 
-To create assistants you can use the `applyAssistants` method of a middleware or the `createAssistant` method of an assistant. They receives `AssistantConfigs` values.
+To create assistants you can use the `applyAssistants` method of a middleware or the `createAssistant` method of an assistant. They receives `AssistantConfig` values.
 
-The simplified `AssistantConfigs` type has the following form:
+The simplified `AssistantConfig` type has the following form:
 
 ```ts
 type AssistantConfig =
@@ -431,47 +676,4 @@ middleware.applyAssistants([
 		select: (fullstate) => fullstate.timer,
 	},
 ]);
-```
-
-## Assistant parameters
-
-Assistant configs passed to `applyAssistants` or `createAssistant` methods must not require any parameters. If they need some parameters, they should be configured before `applyAssistants` or `createAssistant` calls.
-
-Consider some assistant requires the `url` parameter.
-
-```ts
-class FetchAssistant extends Assistant {
-	constructor(url) {
-		super();
-		this.url = url;
-	}
-
-	/** ... */
-}
-```
-
-You can create a function which returns a `AssistantConfig` configured with an url.
-
-```ts
-function getAssistantConfig(url) {
-	return class WithUrlFetchAssistant extends FetchAssistant {
-		constructor() {
-			super(url)
-		}
-	}
-}
-
-// or
-
-function getAssistantConfig(url) {
-	return {
-		create: () => new FetchAssistant(url);
-	}
-}
-```
-
-And then can use this helper.
-
-```ts
-middleware.applyAssistants([getAssistantConfig(url)]);
 ```
