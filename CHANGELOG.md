@@ -1,3 +1,7 @@
+## [0.4.1](https://github.com/megazazik/reducer-assistant/compare/v0.4.0...v0.4.1) (2020-05-17)
+
+
+
 # [0.4.0](https://github.com/megazazik/reducer-assistant/compare/v0.3.2...v0.4.0) (2020-05-16)
 
 
