@@ -175,7 +175,7 @@ class MyAssistant extends Assistant {
 
 ### Dispatch actions
 
-You dispatch any actions inside any method of assistant via the `dispatch` method. You can not use it before the `onInit` method call.
+You can dispatch any actions inside any method of assistant via the `dispatch` method. You can not use it before the `onInit` method call.
 
 ```js
 class MyAssistant extends Assistant {
