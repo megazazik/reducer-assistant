@@ -44,7 +44,7 @@ import { Assistant } from 'reducer-assistant';
  */
 export class FetchDataAssistant extends Assistant {
 	/**
-	 * onInit runs when an assistant starts
+	 * onInit runs when an assistant is applied to the store
 	 *
 	 * You can configure required listeners or dispatch some actions here
 	 */
