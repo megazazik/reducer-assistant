@@ -1,3 +1,12 @@
+# [0.5.0](https://github.com/megazazik/reducer-assistant/compare/v0.4.1...v0.5.0) (2021-08-12)
+
+
+### Features
+
+* **assistant:** add applyAssistant method ([171c1e1](https://github.com/megazazik/reducer-assistant/commit/171c1e192fb7af963a20367610f78a3ba8eece42))
+
+
+
 ## [0.4.1](https://github.com/megazazik/reducer-assistant/compare/v0.4.0...v0.4.1) (2020-05-17)
 
 
