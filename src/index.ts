@@ -94,7 +94,13 @@ export abstract class Assistant<S> {
 		return this[dispatchSymbol];
 	}
 
+	private initialized = false;
+
 	public [initSymbol]() {
+		if (this.initialized) {
+			throw new Error('The assistant has been already initialized')
+		}
+		this.initialized = true;
 		this.onInit();
 
 		/**
@@ -129,9 +135,34 @@ export abstract class Assistant<S> {
 	protected createAssistant<A extends Assistant<unknown>>(
 		config: AssistantConfig<A, S>
 	) {
-		const newAssistant: A = createAssistant(
-			config,
-			() => this.state,
+		const { create, select } = getCreateConfig(config);
+		const newAssistant: A = create();
+
+		this.applyAssistant(newAssistant, select);
+		
+		return newAssistant;
+	}
+
+	protected applyAssistant(
+		assistant: Assistant<S>,
+	): void;
+	protected applyAssistant<K extends keyof S>(
+		assistant: Assistant<S[K]>,
+		key: K,
+	): void;
+	protected applyAssistant<ChildS>(
+		assistant: Assistant<ChildS>,
+		select: (s: S) => ChildS,
+	): void;
+	protected applyAssistant(
+		newAssistant: Assistant<any>,
+		selectParam: keyof S | ((s: S) => any) = (s) => s
+	) {
+		const select = typeof selectParam === 'function' ? selectParam : (s: S) => s[selectParam];
+
+		applyAssistant(
+			newAssistant,
+			() => select(this.state),
 			this[dispatchSymbol],
 			this[actionsEventEmitterSymbol],
 			() => {
@@ -139,7 +170,6 @@ export abstract class Assistant<S> {
 			}
 		);
 		this.assistants.add(newAssistant);
-		return newAssistant;
 	}
 }
 
@@ -368,13 +398,28 @@ export function createAssistant<A extends Assistant<unknown>, S>(
 	const { create, select } = getCreateConfig(config);
 	const assistant = create();
 
-	assistant[getStateSymbol] = () =>
-		(select || ((s: any) => s))(getState()) as any;
+	applyAssistant(
+		assistant,
+		() => select(getState()) as any,
+		dispatch,
+		eventemitter,
+		onDestroy
+	)
+	
+	return assistant;
+}
+
+export function applyAssistant<S>(
+	assistant: Assistant<S>,
+	getState: () => S,
+	dispatch: (action: any) => void,
+	eventemitter: IEventEmitter,
+	onDestroy = () => {}
+) {
+	assistant[getStateSymbol] = getState;
 	assistant[dispatchSymbol] = dispatch;
 	assistant[actionsEventEmitterSymbol] = eventemitter;
 	assistant[onDestroySymbol] = onDestroy;
 
 	assistant[initSymbol]();
-
-	return assistant;
 }

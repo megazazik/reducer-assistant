@@ -356,7 +356,8 @@ The base `Assistant` class has the following method and properties:
 -   [onChange](#onchange)
 -   [afterAction](#afteraction)
 -   [beforeAction](#beforeaction)
--   [createAssistant](#createAssistant)
+-   [createAssistant](#createassistant)
+-   [applyAssistant](#applyassistant)
 -   [destroy](#destroy)
 -   [onDestroy](#ondestroy)
 
@@ -451,6 +452,46 @@ You can run assistants dynamically from other assistants in any time inside and 
 class MyAssistant extends Assistant {
 	onInit() {
 		this.createAssistant(ChildAssistant);
+	}
+}
+```
+
+### applyAssistant
+
+`applyAssistant` method receives an existing instance of assistant and connects it to the store. You can connect any assistant to a store only once.
+
+```typescript
+import { SecondAssistant } from './second';
+
+class MyAssistant extends Assistant {
+	onInit() {
+		const secondAssistant = new SecondAssistant();
+		this.createAssistant(secondAssistant);
+	}
+}
+```
+
+If you need to connect the assistant to a part of the store you can use the aecond argument of the `applyAssistant` method.
+
+```typescript
+type User = {
+	/*...*/
+};
+
+// this assistant can be connected to a state of 'User' type
+class UserAssistant extends Assistant<User> {}
+
+type PageState = {
+	user: User;
+};
+
+class PageAssistant extends Assistant<PageState> {
+	onInit() {
+		const userAssistant = new UserAssistant();
+		// you should connect userAssistant to the 'user' field of the page state
+		this.createAssistant(userAssistant, 'user');
+		// or
+		this.createAssistant(userAssistant, (pageState) => pageState.user);
 	}
 }
 ```
