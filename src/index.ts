@@ -98,7 +98,7 @@ export abstract class Assistant<S> {
 
 	public [initSymbol]() {
 		if (this.initialized) {
-			throw new Error('The assistant has been already initialized')
+			throw new Error('The assistant has been already initialized');
 		}
 		this.initialized = true;
 		this.onInit();
@@ -139,26 +139,27 @@ export abstract class Assistant<S> {
 		const newAssistant: A = create();
 
 		this.applyAssistant(newAssistant, select);
-		
+
 		return newAssistant;
 	}
 
-	protected applyAssistant(
-		assistant: Assistant<S>,
-	): void;
+	protected applyAssistant(assistant: Assistant<S>): void;
 	protected applyAssistant<K extends keyof S>(
 		assistant: Assistant<S[K]>,
-		key: K,
+		key: K
 	): void;
 	protected applyAssistant<ChildS>(
 		assistant: Assistant<ChildS>,
-		select: (s: S) => ChildS,
+		select: (s: S) => ChildS
 	): void;
 	protected applyAssistant(
 		newAssistant: Assistant<any>,
 		selectParam: keyof S | ((s: S) => any) = (s) => s
 	) {
-		const select = typeof selectParam === 'function' ? selectParam : (s: S) => s[selectParam];
+		const select =
+			typeof selectParam === 'function'
+				? selectParam
+				: (s: S) => s[selectParam];
 
 		applyAssistant(
 			newAssistant,
@@ -176,31 +177,27 @@ export abstract class Assistant<S> {
 function createOnActionCallback(
 	type: OnActionEvent,
 	callback?: (action: any) => void
-) {
+): (action: any) => void {
+	if (typeof callback !== 'function') {
+		return (action: any) => {
+			(type as any)(action);
+		};
+	}
+
+	let expectedType: string;
+
+	if (typeof type === 'string') {
+		expectedType = type;
+	} else if (typeof type === 'function' && typeof type.type === 'string') {
+		expectedType = type.type;
+	} else if (typeof type === 'function') {
+		expectedType = type.toString();
+	}
+
 	return (action: any) => {
-		if (typeof callback === 'function') {
-			if (typeof type === 'string' && action.type === type) {
-				callback(action);
-				return;
-			}
-
-			if (
-				typeof type === 'function' &&
-				typeof type.type === 'string' &&
-				action.type === type.type
-			) {
-				callback(action);
-				return;
-			}
-
-			if (typeof type === 'function' && action.type === type.toString()) {
-				callback(action);
-				return;
-			}
-
-			return;
+		if (action.type === expectedType) {
+			callback(action);
 		}
-		(type as any)(action);
 	};
 }
 
@@ -404,8 +401,8 @@ export function createAssistant<A extends Assistant<unknown>, S>(
 		dispatch,
 		eventemitter,
 		onDestroy
-	)
-	
+	);
+
 	return assistant;
 }
 
